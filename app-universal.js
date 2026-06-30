@@ -77,4 +77,27 @@
     });
     observer.observe(document.body, { childList:true, subtree:true });
   }, {once:true});
+
+  // V1.0.66 - mobile menu polish for Main app
+  document.addEventListener('DOMContentLoaded', () => {
+    const shell = document.querySelector('.app-shell');
+    if (!shell) return;
+    const mq = window.matchMedia('(max-width: 1000px)');
+    function ensureMobileCollapsed() {
+      if (mq.matches && !localStorage.getItem('familycare-menu-collapsed')) {
+        shell.classList.add('menu-collapsed');
+      }
+    }
+    ensureMobileCollapsed();
+    mq.addEventListener?.('change', ensureMobileCollapsed);
+    document.querySelectorAll('.nav a').forEach(link => {
+      link.addEventListener('click', () => {
+        if (mq.matches) {
+          shell.classList.add('menu-collapsed');
+          localStorage.setItem('familycare-menu-collapsed','1');
+        }
+      });
+    });
+  }, {once:true});
+
 })();

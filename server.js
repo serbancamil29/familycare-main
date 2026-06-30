@@ -789,7 +789,7 @@ const requestHandler = async (req, res) => {
   res.familyCareSeniorFrameSources = seniorFrameSourcesFor(req);
   const url = new URL(req.url, 'http://127.0.0.1');
   if (url.pathname === '/api/runtime-config') {
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.64', seniorBaseUrl: SENIOR_BASE_URL }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.66', seniorBaseUrl: SENIOR_BASE_URL }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !originAllowed(req)) {
@@ -850,7 +850,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare V1.0.64 Universal PWA is running');
+  console.log('FamilyCare V1.0.66 Universal PWA is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + '/pages/dashboard.html');
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);
   console.log('DB mode: ' + (process.env.DATABASE_URL ? 'DATABASE_URL / pg' : 'local psql'));

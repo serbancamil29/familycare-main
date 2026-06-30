@@ -8,7 +8,7 @@
 
 @media(max-width:800px){#seniorDetailCard{overflow:hidden}#seniorDetailCard .grid-2>div{max-width:100%;overflow-x:auto}#seniorDetailCard table{min-width:430px}.row-actions{white-space:normal;flex-wrap:wrap}}
 
-/* V1.0.64 dashboard phone/tablet */
+/* V1.0.66 dashboard phone/tablet */
 @media (min-width:641px) and (max-width:1000px) {
   .dashboard-senior-cards { grid-template-columns:repeat(2, minmax(0, 1fr)); }
   .dashboard-info-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
