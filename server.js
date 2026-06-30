@@ -208,7 +208,10 @@ const TLS_PFX_PASSPHRASE = process.env.TLS_PFX_PASSPHRASE || 'familycare-local';
 const PROTOCOL = HTTPS_ENABLED ? 'https' : 'http';
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 const ADMIN_NAME = String(process.env.ADMIN_NAME || 'Administrator FamilyCare');
-const AUTH_REQUIRED = Boolean(ADMIN_PASSWORD) || process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER) || !['127.0.0.1','localhost','::1'].includes(HOST);
+// V1.0.70: test mode requested by Camil. By default, Render can start and Main can be opened without admin password.
+// To re-enable password protection later, set FAMILYCARE_AUTH_DISABLED=false (or MAIN_AUTH_DISABLED=false) and configure ADMIN_PASSWORD >= 12 chars.
+const MAIN_AUTH_DISABLED = !['false','0','no','nu'].includes(String(process.env.MAIN_AUTH_DISABLED || process.env.FAMILYCARE_AUTH_DISABLED || 'true').trim().toLowerCase());
+const AUTH_REQUIRED = !MAIN_AUTH_DISABLED && (Boolean(ADMIN_PASSWORD) || process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER) || !['127.0.0.1','localhost','::1'].includes(HOST));
 const SESSION_TTL_MS = Math.max(15 * 60 * 1000, Number(process.env.SESSION_TTL_MINUTES || 480) * 60 * 1000);
 const adminSessions = new Map();
 const loginAttempts = new Map();
@@ -369,7 +372,7 @@ function dollar(text) {
 }
 
 
-// V1.0.69: configurările esențiale din Main sunt legate direct la tabelele reale citite de Senior.
+// V1.0.70: configurările esențiale din Main sunt legate direct la tabelele reale citite de Senior.
 // Nu mai salvăm persoane/ramificații doar generic în config_record.
 const DIRECT_CONFIG_SECTIONS = new Set(['care-header','branches','care-persons','users','doctors','providers']);
 function makeCode(prefix) {
@@ -1111,7 +1114,7 @@ const requestHandler = async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (await handleMainAuthApi(req, res, url)) return;
   if (url.pathname === '/api/runtime-config') {
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.69', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.70', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1182,9 +1185,9 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.69 Compliance & Security is running');
+  console.log('FamilyCare Main V1.0.70 Connected Test No Auth is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
-  console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'local-only bypass'));
+  console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);
   console.log('DB mode: ' + (process.env.DATABASE_URL ? 'DATABASE_URL / pg' : 'local psql'));
   if (SENIOR_BASE_URL) console.log('Senior URL: ' + SENIOR_BASE_URL);
