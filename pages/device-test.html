@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ro">
+<head>
+ <script>(function(){try{if(localStorage.getItem('familycare-theme')==='dark')document.documentElement.classList.add('dark-theme');}catch(e){}})();</script>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+ <meta name="theme-color" content="#2563EB"><meta name="mobile-web-app-capable" content="yes">
+ <link rel="manifest" href="../manifest.webmanifest"><script defer src="../app-universal.js"></script>
+ <title>Test ecrane - FamilyCare</title>
+ <link rel="stylesheet" href="../styles/common.css"><link rel="stylesheet" href="../styles/device-test.css">
+</head>
+<body>
+<div class="app-shell menu-collapsed">
+ <aside class="sidebar">
+  <a class="brand" href="dashboard.html"><img src="../assets/logo.svg" alt="FamilyCare logo"><div><div class="brand-title">FamilyCare</div><div class="brand-subtitle">by Cademix</div><div class="brand-version">v1.0.62</div></div></a>
+  <button class="menu-toggle" type="button" id="menuToggle" title="Restrânge meniul">☰</button>
+  <nav class="nav"><a href="dashboard.html"><span class="ico">🏠</span><span>Dashboard</span></a><a href="journal.html"><span class="ico">📝</span><span>Jurnal</span></a><a href="config.html"><span class="ico">⚙️</span><span>Configurări</span></a><a data-senior-link href="https://localhost:31001/pages/senior-login.html" target="_blank"><span class="ico">👤</span><span>Ecran senior</span></a></nav>
+  <div class="theme-switch" aria-label="Teme"><button type="button" data-theme="light">Light</button><button type="button" data-theme="dark">Dark</button></div>
+ </aside>
+ <main class="main">
+  <div class="topbar"><div><div class="eyebrow">FamilyCare by Cademix</div><h1 class="page-title">Test ecrane</h1><p class="page-lead">Simulezi dimensiuni CSS de telefon, tabletă, laptop și desktop.</p></div></div>
+  <section class="card device-test-layout">
+   <div class="device-test-controls">
+    <div class="field"><label for="testApp">Aplicație</label><select id="testApp"><option value="senior">FamilyCare Senior</option><option value="main">FamilyCare Main</option></select></div>
+    <div class="field"><label for="devicePreset">Dispozitiv / viewport</label><select id="devicePreset">
+     <optgroup label="Telefoane"><option value="320x568">Telefon compact / iPhone SE vechi · 320×568</option><option value="360x640">Android compact · 360×640</option><option value="360x740">Samsung compact · 360×740</option><option value="375x667">iPhone 8 / SE · 375×667</option><option value="390x844">iPhone 14/15 · 390×844</option><option value="412x915" selected>Realme / Pixel profil · 412×915</option><option value="430x932">Telefon mare · 430×932</option><option value="344x882">Telefon pliabil exterior · 344×882</option></optgroup>
+     <optgroup label="Tablete"><option value="600x960">Tabletă compactă · 600×960</option><option value="768x1024">iPad · 768×1024</option><option value="800x1280">Samsung tabletă · 800×1280</option><option value="1024x1366">iPad Pro · 1024×1366</option></optgroup>
+     <optgroup label="Laptop și desktop"><option value="1280x720">Laptop HD · 1280×720</option><option value="1366x768">Laptop uzual · 1366×768</option><option value="1440x900">Laptop mare · 1440×900</option><option value="1920x1080">Desktop Full HD · 1920×1080</option></optgroup>
+    </select></div>
+    <div class="field"><label>Dimensiune personalizată</label><div class="device-custom-size"><input id="customWidth" type="number" min="280" max="2560" value="412" aria-label="Lățime"><span>×</span><input id="customHeight" type="number" min="320" max="2560" value="915" aria-label="Înălțime"></div></div>
+    <div class="field"><label>Orientare și acțiuni</label><div class="device-actions"><button class="btn" id="rotateBtn" type="button">Rotește</button><button class="btn" id="applyCustom" type="button">Aplică</button><button class="btn" id="reloadFrame" type="button">Reîncarcă</button><button class="btn primary" id="openFrame" type="button">Deschide separat</button></div></div>
+   </div>
+   <div class="device-summary"><span id="dimensionLabel">412 × 915 CSS px</span><span id="orientationLabel">Portret</span><span id="scaleLabel">Scară --%</span><a class="btn" href="config.html?section=senior-card-colors">Configurări culori Senior</a></div>
+   <p class="device-help muted">Simulatorul verifică layout-ul la dimensiunea aleasă. Pentru Senior trebuie să fii autentificat; dacă apare ecranul de login, autentifică-te în interiorul simulatorului. Testul fizic rămâne necesar pentru notch, barele browserului, tastatura virtuală și fonturile producătorului.</p>
+   <div class="device-stage" id="deviceStage"><div class="device-shell" id="deviceShell"><div class="device-bezel"></div><div class="device-viewport" id="deviceViewport"><iframe id="deviceFrame" title="Previzualizare dispozitiv"></iframe></div></div></div>
+  </section>
+ </main>
+</div>
+<script>(function(){const key='familycare-theme';function apply(theme){document.documentElement.classList.toggle('dark-theme',theme==='dark');document.body.classList.toggle('dark-theme',theme==='dark');localStorage.setItem(key,theme);}apply(localStorage.getItem(key)==='dark'?'dark':'light');document.querySelectorAll('[data-theme]').forEach(button=>button.addEventListener('click',()=>apply(button.dataset.theme)));})();</script>
+<script>
+(function(){
+ const preset=document.getElementById('devicePreset'),app=document.getElementById('testApp'),widthInput=document.getElementById('customWidth'),heightInput=document.getElementById('customHeight');
+ const stage=document.getElementById('deviceStage'),shell=document.getElementById('deviceShell'),viewport=document.getElementById('deviceViewport'),frame=document.getElementById('deviceFrame');
+ let width=412,height=915;const seniorPort=new URLSearchParams(location.search).get('seniorPort')||'31001';
+ function targetUrl(){return app.value==='main'?'dashboard.html':location.protocol+'//'+location.hostname+':'+seniorPort+'/pages/senior.html';}
+ function updateSource(force){const url=targetUrl();if(force||frame.dataset.url!==url){frame.dataset.url=url;frame.src=url;}}
+ function render(){
+  width=Math.max(280,Math.min(2560,Number(widthInput.value)||412));height=Math.max(320,Math.min(2560,Number(heightInput.value)||915));
+  widthInput.value=width;heightInput.value=height;
+  const availableWidth=Math.max(260,stage.clientWidth-44),availableHeight=Math.max(360,stage.clientHeight-44);const scale=Math.min(1,availableWidth/width,availableHeight/height);
+  frame.style.width=width+'px';frame.style.height=height+'px';frame.style.transform='scale('+scale+')';viewport.style.width=(width*scale)+'px';viewport.style.height=(height*scale)+'px';shell.style.width=(width*scale)+'px';shell.style.height=(height*scale)+'px';
+  document.getElementById('dimensionLabel').textContent=width+' × '+height+' CSS px';document.getElementById('orientationLabel').textContent=width>height?'Landscape':'Portret';document.getElementById('scaleLabel').textContent='Scară '+Math.round(scale*100)+'%';
+ }
+ preset.onchange=()=>{const parts=preset.value.split('x').map(Number);widthInput.value=parts[0];heightInput.value=parts[1];render();};
+ app.onchange=()=>updateSource(true);document.getElementById('applyCustom').onclick=render;document.getElementById('rotateBtn').onclick=()=>{const old=widthInput.value;widthInput.value=heightInput.value;heightInput.value=old;render();};
+ document.getElementById('reloadFrame').onclick=()=>{frame.src=frame.dataset.url||targetUrl();};document.getElementById('openFrame').onclick=()=>window.open(frame.dataset.url||targetUrl(),'_blank','noopener');
+ window.addEventListener('resize',render);updateSource(true);render();
+})();
+</script>
+<script>(function(){const key='familycare-menu-collapsed',shell=document.querySelector('.app-shell'),btn=document.getElementById('menuToggle');function apply(v){shell.classList.toggle('menu-collapsed',v==='1');}apply(localStorage.getItem(key)||'1');btn.addEventListener('click',()=>{const next=shell.classList.contains('menu-collapsed')?'0':'1';localStorage.setItem(key,next);apply(next);});})();</script>
+</body>
+</html>
