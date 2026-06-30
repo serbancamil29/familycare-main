@@ -41,16 +41,6 @@
   });
   document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(installButton);
-    const nav = document.querySelector('.nav');
-    if (nav && !nav.querySelector('[data-device-test-link]')) {
-      const link = document.createElement('a');
-      link.href = 'device-test.html';
-      link.dataset.deviceTestLink = 'true';
-      link.classList.toggle('active', location.pathname.endsWith('/device-test.html'));
-      link.innerHTML = '<span class="ico">▣</span><span>Test ecrane</span>';
-      const seniorLink = nav.querySelector('a[href*="31001"],a[data-senior-link]');
-      nav.insertBefore(link, seniorLink || null);
-    }
   }, {once:true});
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault();

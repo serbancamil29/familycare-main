@@ -1,5 +1,5 @@
-const CACHE = 'familycare-main-v1.0.62-2';
-const SHELL = ['/pages/dashboard.html','/pages/treatment.html','/pages/agenda.html','/pages/device-test.html','/styles/common.css','/styles/device-test.css','/assets/logo.svg','/assets/icon-192.png','/assets/icon-512.png','/manifest.webmanifest','/offline.html'];
+const CACHE = 'familycare-main-v1.0.64-mobile-main-senior-fix';
+const SHELL = ['/pages/dashboard.html','/pages/journal.html','/pages/config.html','/pages/treatment.html','/pages/agenda.html','/styles/common.css','/styles/journal.css','/styles/config.css','/assets/logo.svg','/assets/icon-192.png','/assets/icon-512.png','/manifest.webmanifest','/offline.html'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('familycare-main-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', event => {

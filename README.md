@@ -1,4 +1,4 @@
-# FamilyCare Main V1.0.62 Render
+# FamilyCare Main V1.0.64 Render NAV FIX
 
 ## Render Web Service
 - Build Command: `npm install`
@@ -23,7 +23,7 @@ Rulează `postgresql_schema.sql` o singură dată pe baza Render PostgreSQL.
 
 ---
 
-# FamilyCare Main V1.0.62 Universal PWA
+# FamilyCare Main V1.0.64 Universal PWA
 
 Aceeași aplicație este adaptată pentru desktop, laptop, tabletă și telefon.
 
@@ -33,9 +33,8 @@ Aceeași aplicație este adaptată pentru desktop, laptop, tabletă și telefon.
 - PC + telefoane/tablete în aceeași rețea Wi-Fi: rulează `START_FAMILYCARE_NETWORK.bat`.
 - Instrucțiuni Android și instalare PWA: `MOBILE_TABLET_SETUP.md`.
 
-## Ce aduce V1.0.62
+## Ce aduce V1.0.64
 
-- Pagina `Test ecrane` cu preseturi de telefon, tabletă, laptop și desktop, orientare și dimensiuni personalizate.
 - Scurtătură `Culori carduri` în Dashboard; configurarea completă este în `Configurări > Personalizare și sistem > Culori Senior`.
 - Interfață Main fluidă pentru telefon, tabletă, laptop și desktop, fără depășire orizontală.
 - Tabele transformate automat în carduri etichetate pe telefon.
@@ -56,4 +55,4 @@ Modul Network este pentru o rețea Wi-Fi privată și de încredere. Main nu are
 
 Gmail nu acceptă parola normală prin această integrare SMTP. Nu salva parola personală Google; pentru publicare, integrarea trebuie înlocuită cu Google OAuth.
 
-Vezi `RESPONSIVE_TEST_MATRIX.md` și `AUDIT_CONFIGURARI_V1.0.62.md` pentru limitele testării și reorganizarea recomandată.
+Vezi `RESPONSIVE_TEST_MATRIX.md` și `AUDIT_CONFIGURARI_V1.0.64.md` pentru limitele testării și reorganizarea recomandată.

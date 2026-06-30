@@ -1,4 +1,4 @@
-# Matrice responsive FamilyCare V1.0.62
+# Matrice responsive FamilyCare V1.0.64
 
 Aplicația folosește CSS responsive, nu versiuni separate pe model de telefon. Dimensiunile sunt exprimate în pixeli CSS; rezoluția fizică și densitatea ecranului sunt convertite de browser prin device pixel ratio.
 
@@ -12,7 +12,6 @@ Aplicația folosește CSS responsive, nu versiuni separate pe model de telefon. 
 
 ## Cum confirmi pe dispozitivul real
 
-Poți folosi mai întâi `Test ecrane` din meniul Main pentru a alege un preset sau o dimensiune personalizată și pentru a roti simulatorul.
 
 1. Pornește modul Network pe laptop și conectează telefonul/tableta la aceeași rețea Wi-Fi.
 2. Deschide adresa HTTPS afișată de script.

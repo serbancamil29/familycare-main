@@ -488,7 +488,7 @@ html.dark-theme .upcoming-tag.urgent span { color: #FEE2E2; }
 }
 html.dark-theme .treatment-name-menu { background:#151D30; border-color:#334155; box-shadow: 0 18px 44px rgba(0,0,0,.45); }
 
-/* V1.0.62 Universal PWA */
+/* V1.0.64 Universal PWA */
 html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
 body { overscroll-behavior-y:none; }
 .main { padding-left:max(34px, env(safe-area-inset-left)); padding-right:max(34px, env(safe-area-inset-right)); padding-bottom:max(48px, env(safe-area-inset-bottom)); }
@@ -508,7 +508,7 @@ html.pwa-standalone .pwa-install-button { display:none; }
   .pwa-install-button { left:max(14px, env(safe-area-inset-left)); right:max(14px, env(safe-area-inset-right)); width:auto; }
 }
 
-/* V1.0.62 visual color picker used by Senior card settings */
+/* V1.0.64 visual color picker used by Senior card settings */
 .field input[type="color"] {
   width:100%;
   min-height:52px;
@@ -516,7 +516,7 @@ html.pwa-standalone .pwa-install-button { display:none; }
   cursor:pointer;
 }
 
-/* V1.0.62 universal responsive layout */
+/* V1.0.64 universal responsive layout */
 *, *::before, *::after { box-sizing:border-box; }
 img, svg, video { max-width:100%; }
 .main > *, .card, .context-card, .section { min-width:0; max-width:100%; }
@@ -579,4 +579,35 @@ img, svg, video { max-width:100%; }
   table.responsive-table td.row-actions { display:flex; width:100%; flex-wrap:wrap; }
   .actions .btn,
   .row-actions button { min-height:38px; }
+}
+
+
+/* V1.0.64 - mobile main scroll + remove testing menu link */
+@media (max-width: 1000px) {
+  html,
+  body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-y: auto !important;
+    touch-action: pan-y !important;
+  }
+  .app-shell,
+  .app-shell.menu-collapsed {
+    display: block !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+  }
+  .main {
+    height: auto !important;
+    min-height: calc(100dvh - 70px) !important;
+    overflow: visible !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: max(96px, env(safe-area-inset-bottom)) !important;
+  }
+  .sidebar {
+    overflow: visible !important;
+  }
 }
