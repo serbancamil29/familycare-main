@@ -1,4 +1,4 @@
-const CACHE = 'familycare-main-v1.0.66-mobile-navigation-scroll-fix';
+const CACHE = 'familycare-main-v1.0.67-mobile-navigation-scroll-fix';
 const SHELL = ['/pages/dashboard.html','/pages/journal.html','/pages/config.html','/pages/treatment.html','/pages/agenda.html','/styles/common.css','/styles/journal.css','/styles/config.css','/assets/logo.svg','/assets/icon-192.png','/assets/icon-512.png','/manifest.webmanifest','/offline.html'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('familycare-main-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));

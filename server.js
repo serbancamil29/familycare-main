@@ -372,6 +372,45 @@ async function handleMailSettingsApi(req, res, url) {
   }
 }
 
+async function handleSeniorSoundSettingsApi(req, res, url) {
+  if (url.pathname !== '/api/senior-sound-settings') return false;
+  try {
+    if (req.method === 'GET') {
+      const sql = `select coalesce((
+        select jsonb_build_object(
+          'type', case when lower(coalesce(payload->>'Tip sunet', payload->>'type', 'soft')) in ('soft','bell','alert') then lower(coalesce(payload->>'Tip sunet', payload->>'type', 'soft')) else 'soft' end,
+          'volume', case when coalesce(payload->>'Volum', payload->>'volume', '') ~ '^[0-9]+$' then least(100, greatest(0, coalesce(payload->>'Volum', payload->>'volume')::int)) else 70 end,
+          'active', coalesce(payload->>'Activ', payload->>'active', 'da')
+        )::text
+        from ${dqIdent(PGSCHEMA)}.config_record
+        where section_key='senior-sound-settings'
+        order by sort_order, id
+        limit 1
+      ), jsonb_build_object('type','soft','volume',70,'active','da')::text);`;
+      send(res, 200, await runPsql(sql) || '{"type":"soft","volume":70,"active":"da"}', 'application/json; charset=utf-8');
+      return true;
+    }
+    if (req.method === 'POST') {
+      const b = await readJson(req);
+      const type = ['soft','bell','alert'].includes(String(b.type || b['Tip sunet'] || '').toLowerCase()) ? String(b.type || b['Tip sunet']).toLowerCase() : 'soft';
+      const volume = Math.max(0, Math.min(100, Number(b.volume ?? b.Volum ?? 70) || 70));
+      const active = String(b.active ?? b.Activ ?? 'da');
+      const payload = JSON.stringify({ 'Tip sunet': type, Volum: String(volume), Activ: active });
+      const sql = `with old as (delete from ${dqIdent(PGSCHEMA)}.config_record where section_key='senior-sound-settings')
+        insert into ${dqIdent(PGSCHEMA)}.config_record(section_key,payload,sort_order)
+        values ('senior-sound-settings', ${dollar(payload)}::jsonb, 1)
+        returning json_build_object('ok',true,'type',payload->>'Tip sunet','volume',payload->>'Volum')::text;`;
+      send(res, 200, await runPsql(sql) || '{"ok":true}', 'application/json; charset=utf-8');
+      return true;
+    }
+    send(res, 405, 'Method not allowed');
+    return true;
+  } catch(e) {
+    send(res, 500, e.message || 'Sound settings error');
+    return true;
+  }
+}
+
 async function handleFamilyContactApi(req, res, url) {
   if (url.pathname !== '/api/family-contact') return false;
   try {
@@ -789,7 +828,7 @@ const requestHandler = async (req, res) => {
   res.familyCareSeniorFrameSources = seniorFrameSourcesFor(req);
   const url = new URL(req.url, 'http://127.0.0.1');
   if (url.pathname === '/api/runtime-config') {
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.66', seniorBaseUrl: SENIOR_BASE_URL }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.67', seniorBaseUrl: SENIOR_BASE_URL }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !originAllowed(req)) {
@@ -797,6 +836,7 @@ const requestHandler = async (req, res) => {
     return;
   }
   if (await handleMailSettingsApi(req, res, url)) return;
+  if (await handleSeniorSoundSettingsApi(req, res, url)) return;
   if (await handleFamilyContactApi(req, res, url)) return;
   if (await handleTreatmentConfirmApi(req, res, url)) return;
   if (await handleQuickActionApi(req, res, url)) return;
@@ -850,7 +890,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare V1.0.66 Universal PWA is running');
+  console.log('FamilyCare V1.0.67 Universal PWA is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + '/pages/dashboard.html');
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);
   console.log('DB mode: ' + (process.env.DATABASE_URL ? 'DATABASE_URL / pg' : 'local psql'));

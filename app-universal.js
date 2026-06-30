@@ -78,7 +78,7 @@
     observer.observe(document.body, { childList:true, subtree:true });
   }, {once:true});
 
-  // V1.0.66 - mobile menu polish for Main app
+  // V1.0.67 - mobile menu polish for Main app
   document.addEventListener('DOMContentLoaded', () => {
     const shell = document.querySelector('.app-shell');
     if (!shell) return;

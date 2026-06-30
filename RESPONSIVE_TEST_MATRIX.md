@@ -1,4 +1,4 @@
-# Matrice responsive FamilyCare V1.0.66
+# Matrice responsive FamilyCare V1.0.67
 
 Aplicația folosește CSS responsive, nu versiuni separate pe model de telefon. Dimensiunile sunt exprimate în pixeli CSS; rezoluția fizică și densitatea ecranului sunt convertite de browser prin device pixel ratio.
 
