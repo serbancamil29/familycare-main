@@ -805,7 +805,16 @@ const requestHandler = async (req, res) => {
   if (await handleAgendaApi(req, res, url)) return;
   if (await handleApi(req, res, url)) return;
   let pathname = decodeURIComponent(url.pathname);
-  if (pathname === '/') pathname = '/pages/dashboard.html';
+  // Render/public root fix: redirect root to the real page path so relative links
+  // like journal.html and config.html resolve as /pages/journal.html and /pages/config.html.
+  if (pathname === '/') {
+    res.writeHead(302, {
+      'Location': '/pages/dashboard.html',
+      'Cache-Control': 'no-store'
+    });
+    res.end();
+    return;
+  }
   const file = path.resolve(ROOT, pathname.replace(/^[/\\]+/, ''));
   const relative = path.relative(ROOT, file);
   if (relative.startsWith('..') || path.isAbsolute(relative)) { send(res, 403, 'Forbidden'); return; }
@@ -841,7 +850,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare V1.0.62 Universal PWA is running');
+  console.log('FamilyCare V1.0.63 Universal PWA is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + '/pages/dashboard.html');
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);
   console.log('DB mode: ' + (process.env.DATABASE_URL ? 'DATABASE_URL / pg' : 'local psql'));
