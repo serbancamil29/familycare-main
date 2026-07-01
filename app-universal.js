@@ -57,15 +57,7 @@
       refresh();
       toggle.addEventListener('click', () => requestAnimationFrame(refresh));
     }
-    const titleBlock = document.querySelector('.topbar > div:first-child');
-    if (titleBlock && !document.querySelector('.app-print-button, #printReport')) {
-      const print = document.createElement('button');
-      print.type = 'button';
-      print.className = 'app-print-button';
-      print.textContent = 'Tip\u0103re\u0219te';
-      print.addEventListener('click', () => window.print());
-      titleBlock.appendChild(print);
-    }
+    // Tipărirea este disponibilă doar la nivel de raport, în pages/reports.html.
   }
   function ensureAuthControls(cfg) {
     if (!cfg.authRequired || !document.querySelector('.sidebar') || document.querySelector('.sidebar-auth')) return;
@@ -84,7 +76,7 @@
     ensureMainNavigation();
     improveShellControls();
     ensureAuthControls(cfg);
-    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.72'); });
+    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.73'); });
   }, { once: true });
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

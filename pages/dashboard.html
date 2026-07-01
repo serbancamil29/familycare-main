@@ -14,7 +14,7 @@
 <body>
 <div class="app-shell">
  <aside class="sidebar">
-  <a class="brand" href="dashboard.html"><img src="../assets/logo.svg" alt="FamilyCare"><div><div class="brand-title">FamilyCare</div><div class="brand-subtitle">by Cademix</div><div class="brand-version">v1.0.66</div></div></a>
+  <a class="brand" href="dashboard.html"><img src="../assets/logo.svg" alt="FamilyCare"><div><div class="brand-title">FamilyCare</div><div class="brand-subtitle">by Cademix</div><div class="brand-version">v1.0.73</div></div></a>
   <button class="menu-toggle" type="button" id="menuToggle" title="Restrânge meniul">☰</button>
   <nav class="nav"><a class="active" href="dashboard.html"><span class="ico">🏠</span><span>Dashboard</span></a>
 <a href="journal.html"><span class="ico">📝</span><span>Jurnal</span></a>
@@ -29,31 +29,82 @@
   </div>
 
   <section class="section care-overview" aria-labelledby="overviewTitle">
-   <div class="section-head-inline"><div><h2 class="section-title" id="overviewTitle">Activitate și aderență</h2><p class="muted">Confirmări, omisiuni și răspunsuri recente pentru toți beneficiarii.</p></div><div class="overview-controls"><select id="historyPeriod"><option value="7">Ultimele 7 zile</option><option value="30" selected>Ultimele 30 zile</option><option value="90">Ultimele 90 zile</option></select><a class="btn" href="reports.html">Rapoarte detaliate</a></div></div>
-   <div class="overview-kpis"><article class="kpi good"><span>Confirmate</span><b id="historyConfirmed">0</b><small>administrate / efectuate</small></article><article class="kpi danger"><span>Omise sau refuzate</span><b id="historyMissed">0</b><small>necesită atenție</small></article><article class="kpi accent"><span>Aderență</span><b id="historyRate">—</b><small>din deciziile înregistrate</small></article><article class="kpi warning"><span>Fără răspuns azi</span><b id="historyPending">0</b><small>din programul de astăzi</small></article></div>
-   <div class="overview-grid"><div class="adherence-panel"><h3>Aderență pe beneficiar</h3><div id="adherenceChart" class="adherence-chart"></div></div><div class="history-panel"><h3>Istoric recent</h3><div id="historyTimeline" class="history-timeline"></div></div></div>
+   <div class="section-head-inline dashboard-headline">
+    <div>
+     <h2 class="section-title" id="overviewTitle">Dashboard operațional</h2>
+     <p class="muted">Imagine rapidă pentru toți beneficiarii: confirmări, întârzieri, istoric și ce trebuie urmărit.</p>
+    </div>
+    <div class="overview-controls">
+     <select id="historyPeriod" aria-label="Perioadă istoric"><option value="7">Ultimele 7 zile</option><option value="30" selected>Ultimele 30 zile</option><option value="90">Ultimele 90 zile</option></select>
+     <a class="btn" href="reports.html">Rapoarte detaliate</a>
+    </div>
+   </div>
+   <div class="overview-kpis compact-kpis">
+    <a class="kpi good dashboard-link-card" href="reports.html?report=decisions&status=confirmed"><span>Confirmate</span><b id="historyConfirmed">0</b><small>administrate / efectuate</small></a>
+    <a class="kpi danger dashboard-link-card" href="reports.html?report=exceptions"><span>Omise sau refuzate</span><b id="historyMissed">0</b><small>necesită atenție</small></a>
+    <a class="kpi accent dashboard-link-card" href="reports.html?report=adherence"><span>Aderență</span><b id="historyRate">—</b><small>din deciziile înregistrate</small></a>
+    <a class="kpi warning dashboard-link-card" href="reports.html?report=pending"><span>Fără răspuns azi</span><b id="historyPending">0</b><small>din programul de astăzi</small></a>
+   </div>
+   <div class="dashboard-insight-grid">
+    <article class="dashboard-info-tile"><span>Plan azi</span><b id="todayPlanInfo">0 taskuri</b><small>tratamente și activități planificate</small></article>
+    <article class="dashboard-info-tile"><span>Atenție acum</span><b id="attentionInfo">0 situații</b><small>întârzieri, refuzuri sau lipsă răspuns</small></article>
+    <article class="dashboard-info-tile"><span>Următoarea acțiune</span><b id="nextActionInfo">—</b><small id="nextActionMeta">se actualizează automat</small></article>
+   </div>
+   <div class="overview-grid dashboard-overview-grid">
+    <div class="adherence-panel">
+     <h3>Aderență pe beneficiar</h3>
+     <p class="muted panel-help">Carduri mici, click pentru detalii și acțiuni pe beneficiar.</p>
+     <div id="adherenceChart" class="adherence-card-grid"></div>
+    </div>
+    <div class="history-panel"><h3>Istoric recent</h3><div id="historyTimeline" class="history-timeline"></div></div>
+   </div>
   </section>
 
   <section class="section dashboard-seniors-section">
-   <div class="section-head-inline"><div><h2 class="section-title">Beneficiari</h2><p class="muted" id="seniorDisplayInfo"></p></div><div class="header-actions"><input id="seniorSearch" class="senior-search" type="search" placeholder="Caută beneficiar"><a class="btn" href="config.html?section=senior-card-colors">Carduri</a><button class="btn primary subtle-action" id="openTreatmentModal" type="button">＋ Tratament</button><button class="btn" id="openAgendaModal" type="button">＋ Agendă</button></div></div>
-   <div class="dashboard-senior-cards" id="dashboardSeniorCards"></div>
+   <div class="section-head-inline">
+    <div>
+     <h2 class="section-title">Beneficiari monitorizați</h2>
+     <p class="muted" id="seniorDisplayInfo"></p>
+    </div>
+    <div class="header-actions dashboard-filter-actions">
+     <input id="seniorSearch" class="senior-search" type="search" placeholder="Caută beneficiar">
+     <a class="btn" href="config.html?section=care-persons">Adaugă beneficiar</a>
+     <a class="btn" href="config.html?section=branches">Grup / locație</a>
+    </div>
+   </div>
+   <div class="dashboard-senior-cards compact-beneficiary-cards" id="dashboardSeniorCards"></div>
   </section>
 
-  <section class="section card" id="seniorDetailCard">
-   <div class="section-head-inline"><div><h2 class="section-title" id="detailTitle">Detalii senior</h2><p class="muted" id="detailSubtitle">Alege un senior pentru a vedea tratamentele și agenda.</p></div><a class="btn primary" target="_blank" href="https://localhost:31001/pages/senior-login.html">Deschide ecran senior</a></div>
-   <div class="grid-3 dashboard-info-grid">
-    <div class="info-box"><b>Următorul tratament</b><div id="detailNextTreatment" class="big-info">-</div></div>
-    <div class="info-box"><b>Tratamente azi</b><div id="detailTodayCount" class="big-info">0</div></div>
-    <div class="info-box"><b>Activități azi</b><div id="detailAgendaCount" class="big-info">0</div></div>
-   </div>
-   <div class="grid-2" style="margin-top:16px">
-    <div><h3 class="mini-title">Plan tratament</h3><div class="table-wrap"><table><thead><tr><th>Ora</th><th>Tratament</th><th>Regulă</th><th>Acțiuni</th></tr></thead><tbody id="selectedTreatmentBody"><tr><td colspan="4">Nu există date.</td></tr></tbody></table></div></div>
-    <div><h3 class="mini-title">Agendă</h3><div class="table-wrap"><table><thead><tr><th>Ora</th><th>Activitate</th><th>Detalii</th></tr></thead><tbody id="selectedAgendaBody"><tr><td colspan="3">Nu există date.</td></tr></tbody></table></div></div>
+  <section class="section card dashboard-structure-note">
+   <div class="section-head-inline"><div><h2 class="section-title">Unde adaugi beneficiarii</h2><p class="muted">Pentru o familie cu un aparținător și mai mulți beneficiari, folosește Configurări → Beneficiari. Grupul / locația este doar o etichetă de organizare, de exemplu „Familia mea” sau „Părinții mei”.</p></div><a class="btn primary" href="config.html?section=care-persons">Deschide Beneficiari</a></div>
+   <div class="dashboard-flow-cards">
+    <article><b>1. Adaugi beneficiarul</b><span>Configurări → Beneficiari. Aici apar persoanele cărora le poți asigna tratamente și activități.</span></article>
+    <article><b>2. Alegi grupul / locația</b><span>În loc de „ramificație”, gândește-l ca grup: familia, casa, locația sau căminul.</span></article>
+    <article><b>3. Asignezi taskuri</b><span>Din fereastra beneficiarului sau din modulul Tratament/Agendă selectezi persoana și salvezi.</span></article>
    </div>
   </section>
-
-  <section class="section card"><h2 class="section-title">Recomandări medic</h2><div class="info-box"><b>Control cardiologie</b> · programare în următoarele 30 zile<br><b>Monitorizare tensiune</b> · task recurent zilnic<br><b>Regim alimentar</b> · sare redusă, hidratare.</div></section>
- </main>
+<div class="beneficiary-modal-backdrop" id="beneficiaryModalBackdrop" hidden>
+ <section class="beneficiary-modal" role="dialog" aria-modal="true" aria-labelledby="bmTitle">
+  <div class="modal-head beneficiary-modal-head"><div><span class="beneficiary-kicker">Beneficiar</span><h2 id="bmTitle">Detalii beneficiar</h2><p class="muted" id="bmSubtitle"></p></div><button class="btn" id="bmClose" type="button">Închide</button></div>
+  <div class="beneficiary-modal-actions">
+   <button class="btn primary" id="bmAddTreatment" type="button">＋ Adaugă tratament</button>
+   <button class="btn" id="bmAddAgenda" type="button">＋ Agendă</button>
+   <a class="btn" id="bmJournal" href="journal.html">Jurnal</a>
+   <a class="btn" id="bmReports" href="reports.html">Rapoarte</a>
+   <a class="btn" id="bmCard" href="config.html?section=senior-card-colors">Card</a>
+   <a class="btn" id="bmSeniorScreen" target="_blank" href="https://localhost:31001/pages/senior-login.html">Ecran senior</a>
+  </div>
+  <div class="beneficiary-summary-grid">
+   <article><span>Următorul tratament</span><b id="bmNextTreatment">—</b></article>
+   <article><span>Tratamente azi</span><b id="bmTodayCount">0</b></article>
+   <article><span>Activități azi</span><b id="bmAgendaCount">0</b></article>
+   <article><span>Aderență</span><b id="bmAdherenceRate">—</b></article>
+  </div>
+  <div class="beneficiary-detail-grid">
+   <div><h3>Plan tratament azi</h3><div class="table-wrap"><table><thead><tr><th>Ora</th><th>Tratament</th><th>Regulă</th><th>Acțiuni</th></tr></thead><tbody id="bmTreatmentBody"><tr><td colspan="4">Nu există date.</td></tr></tbody></table></div></div>
+   <div><h3>Agendă și istoric</h3><div id="bmRecentList" class="beneficiary-recent-list"></div><div class="table-wrap compact-table"><table><thead><tr><th>Ora</th><th>Activitate</th><th>Detalii</th></tr></thead><tbody id="bmAgendaBody"><tr><td colspan="3">Nu există activități azi.</td></tr></tbody></table></div></div>
+  </div>
+ </section>
 </div>
 
 <div class="app-modal-backdrop" id="modalBackdrop" hidden>
@@ -118,7 +169,20 @@ async function loadEntities(){let rows=[];try{const [entityResponse,settingRespo
 function filteredEntities(){const q=String(document.getElementById('seniorSearch')?.value||'').trim().toLowerCase();return entities.filter(e=>(!selectedUnit||e.branch_code===selectedUnit||e.branch_name===selectedUnit)&&(!q||`${e.name} ${e.entity_type} ${e.branch_name||''}`.toLowerCase().includes(q)));}
 function renderUnitSelect(){const s=document.getElementById('contextUnitSelect');const units=[...new Map(entities.map(e=>[e.branch_code||e.branch_name||'',{code:e.branch_code||e.branch_name||'',name:e.branch_name||e.branch_code||'Fără unitate'}])).values()].filter(x=>x.code);s.innerHTML='<option value="">Toate unitățile</option>'+units.map(x=>`<option value="${safe(x.code)}" ${x.code===selectedUnit?'selected':''}>${safe(x.name)}</option>`).join('');}
 function renderContextSelect(){const s=document.getElementById('contextSeniorSelect'); s.innerHTML=filteredEntities().map(e=>`<option value="${safe(e.entity_code)}" ${e.entity_code===selectedEntityCode?'selected':''}>${safe(e.name)} · ${safe(e.entity_type)}</option>`).join('');}
-function renderSeniorCards(){const box=document.getElementById('dashboardSeniorCards');const filtered=filteredEntities();const visible=displayLimit?filtered.slice(0,displayLimit):filtered;document.getElementById('seniorDisplayInfo').textContent=`${visible.length} din ${filtered.length} beneficiari afișați${displayLimit?' · limită configurată':''}`;box.innerHTML=visible.map(e=>`<button type="button" class="dashboard-senior-card ${e.entity_code===selectedEntityCode?'active':''}" data-code="${safe(e.entity_code)}" style="--senior-card-bg:${safe(e.card_color||'#2563EB')};--senior-card-text:${safe(e.card_text_color||'#FFFFFF')}"><b>${safe(e.name)}</b><span>${safe(e.entity_type)} · ${safe(e.branch_name||'Fără unitate')}</span></button>`).join('')||'<div class="empty-state">Nu există beneficiari pentru filtrul ales.</div>'; box.querySelectorAll('button').forEach(b=>b.onclick=()=>{selectedEntityCode=b.dataset.code;renderSeniorCards();renderContextSelect();renderSelectedDetails();renderHistory();});}
+function renderSeniorCards(){
+ const box=document.getElementById('dashboardSeniorCards');
+ const filtered=filteredEntities();
+ document.getElementById('seniorDisplayInfo').textContent=`${filtered.length} beneficiar${filtered.length===1?'':'i'} în evidență${selectedUnit?' · filtrat pe grup/locație':''}`;
+ box.innerHTML=filtered.map(e=>{
+  const todayTreat=(treatments||[]).filter(t=>t.entity_code===e.entity_code && isValidForToday(t));
+  const todayAgenda=(agendaItems||[]).filter(t=>t.entity_code===e.entity_code && isValidForToday(t));
+  const rows=entityHistoryRows(e);
+  const pct=entityAdherencePercent(e);
+  const next=todayTreat.sort((a,b)=>occurrence(a)-occurrence(b))[0];
+  return `<button type="button" class="dashboard-senior-card compact ${e.entity_code===selectedEntityCode?'active':''}" data-code="${safe(e.entity_code)}" style="--senior-card-bg:${safe(e.card_color||'#2563EB')};--senior-card-text:${safe(e.card_text_color||'#FFFFFF')}"><b>${safe(e.name)}</b><span>${safe(e.entity_type)} · ${safe(e.branch_name||'Fără grup')}</span><small>${todayTreat.length} trat. azi · ${todayAgenda.length} agendă · ${pct===null?'—':pct+'%'} aderență</small><em>${next?'Următor: '+timeLabel(next.start_time)+' '+safe(next.title):'Fără tratament azi'}</em></button>`;
+ }).join('')||'<div class="empty-state">Nu există beneficiari pentru filtrul ales.</div>';
+ box.querySelectorAll('button').forEach(b=>b.onclick=()=>openBeneficiaryPanel(b.dataset.code));
+}
 function renderMultiSelects(){const html=entities.map(e=>`<option value="${safe(e.entity_code)}" ${e.entity_code===selectedEntityCode?'selected':''}>${safe(e.name)} · ${safe(e.entity_type)}</option>`).join(''); document.getElementById('seniorMultiSelect').innerHTML=html; document.getElementById('agendaSeniorSelect').innerHTML=html;}
 function dateOnly(s){if(!s)return null; const d=new Date(String(s).slice(0,10)+'T00:00:00'); return isNaN(d)?null:d;}
 function parseTime(t){const [h,m]=String(t||'09:00').slice(0,5).split(':').map(Number);return {h:h||0,m:m||0};}
@@ -126,8 +190,8 @@ function isValidForToday(item){const d=new Date(); const start=dateOnly(item.sta
 function occurrence(item){const {h,m}=parseTime(item.start_time); const t=new Date(); t.setHours(h,m,0,0); return t;}
 function ruleLabel(x){if(x.recurrence_rule==='daily')return'Zilnic'; if(x.recurrence_rule==='every_x_days')return'Din '+(x.repeat_every_days||1)+' în '+(x.repeat_every_days||1)+' zile'; if(x.recurrence_rule==='once')return'O singură dată'; return String(x.active_weekdays||'').split(',').filter(Boolean).map(d=>WEEKDAYS[d]).join(', ')||'Zile selectate';}
 function timeLabel(t){return String(t||'').slice(0,5)||'-';}
-async function loadTreatments(){try{const r=await fetch('/api/treatment?ts='+Date.now());treatments=r.ok?await r.json():[];}catch(e){treatments=[];} mergeTreatmentNamesFromPlan(); renderTreatmentNames(); renderSelectedDetails();}
-async function loadAgenda(){try{const r=await fetch('/api/agenda?ts='+Date.now());agendaItems=r.ok?await r.json():[];}catch(e){agendaItems=[];} renderSelectedDetails();}
+async function loadTreatments(){try{const r=await fetch('/api/treatment?ts='+Date.now());treatments=r.ok?await r.json():[];}catch(e){treatments=[];} mergeTreatmentNamesFromPlan(); renderTreatmentNames(); renderSelectedDetails(); renderHistory();}
+async function loadAgenda(){try{const r=await fetch('/api/agenda?ts='+Date.now());agendaItems=r.ok?await r.json():[];}catch(e){agendaItems=[];} renderSelectedDetails(); renderHistory();}
 async function loadHistory(){
  let decisions=[],confirmations=[];try{const [d,c]=await Promise.all([fetch('/api/config/treatment-decisions?ts='+Date.now()),fetch('/api/config/treatment-confirmations?ts='+Date.now())]);if(d.ok)decisions=await d.json();if(c.ok)confirmations=await c.json();}catch(e){}
  historyRows=(decisions||[]).map(r=>{const p=r.payload||{};return {senior:p.Senior||p.Beneficiar||'',treatment:p.Tratament||'',time:p['Ora planificată']||p.Ora||'',decision:p.Decizie||'Administrat / efectuat',reason:p.Motiv||'',date:p['Înregistrat la']||p.ConfirmatLa||r.updated_at||'',key:p.OccurrenceKey||''};});
@@ -136,28 +200,92 @@ async function loadHistory(){
 }
 function historyCutoff(){const d=new Date();d.setDate(d.getDate()-historyDays);d.setHours(0,0,0,0);return d;}
 function historyStatus(row){const d=String(row.decision||'').toLowerCase();if(d.includes('administrat')||d.includes('efectuat')||d.includes('confirm'))return'confirmed';if(d.includes('refuz'))return'refused';if(d.includes('omis'))return'missed';if(d.includes('amân'))return'delayed';return'pending';}
+
+function entityHistoryRows(entity){
+ const cutoff=historyCutoff();
+ return (historyRows||[]).filter(r=>{
+  const d=new Date(r.date);
+  if(isNaN(d)||d<cutoff)return false;
+  const sameName=String(r.senior||'')===String(entity?.name||'');
+  const sameCode=String(r.entity_code||r['Cod entitate']||'')===String(entity?.entity_code||'');
+  return sameName||sameCode;
+ });
+}
+function entityAdherencePercent(entity){
+ const rows=entityHistoryRows(entity).filter(r=>historyStatus(r)!=='pending');
+ if(!rows.length)return null;
+ const confirmed=rows.filter(r=>historyStatus(r)==='confirmed').length;
+ return Math.round(confirmed/rows.length*100);
+}
+function renderDashboardInsightTiles(filteredHistory){
+ const todayTreat=(treatments||[]).filter(t=>isValidForToday(t));
+ const todayAgenda=(agendaItems||[]).filter(t=>isValidForToday(t));
+ const trouble=(filteredHistory||[]).filter(r=>['refused','missed','delayed'].includes(historyStatus(r))).length;
+ const upcoming=todayTreat.map(t=>({...t,_occ:occurrence(t)})).sort((a,b)=>a._occ-b._occ)[0];
+ document.getElementById('todayPlanInfo').textContent=`${todayTreat.length+todayAgenda.length} taskuri`;
+ document.getElementById('attentionInfo').textContent=`${trouble} situații`;
+ document.getElementById('nextActionInfo').textContent=upcoming?`${timeLabel(upcoming.start_time)} · ${upcoming.title}`:'—';
+ document.getElementById('nextActionMeta').textContent=upcoming?`${upcoming.entity_name||entities.find(e=>e.entity_code===upcoming.entity_code)?.name||'Beneficiar'}`:'nu există tratamente azi';
+}
+function renderAdherenceCards(filteredHistory){
+ const cards=filteredEntities().map(e=>{
+  const rows=entityHistoryRows(e);
+  const decided=rows.filter(r=>historyStatus(r)!=='pending');
+  const confirmed=decided.filter(r=>historyStatus(r)==='confirmed').length;
+  const missed=decided.filter(r=>['refused','missed'].includes(historyStatus(r))).length;
+  const pct=decided.length?Math.round(confirmed/decided.length*100):null;
+  const today=(treatments||[]).filter(t=>t.entity_code===e.entity_code&&isValidForToday(t)).length;
+  return `<button type="button" class="adherence-card" data-code="${safe(e.entity_code)}" style="--bar:${safe(e.card_color||'#2563EB')}"><div><b>${safe(e.name)}</b><span>${safe(e.entity_type)} · ${safe(e.branch_name||'Fără grup')}</span></div><strong>${pct===null?'—':pct+'%'}</strong><small>${confirmed}/${decided.length||0} confirmate · ${missed} atenție · ${today} azi</small><i><em style="width:${pct===null?0:pct}%"></em></i></button>`;
+ }).join('');
+ document.getElementById('adherenceChart').innerHTML=cards||'<div class="empty-state">Adaugă beneficiari în Configurări → Beneficiari.</div>';
+ document.querySelectorAll('.adherence-card').forEach(btn=>btn.onclick=()=>openBeneficiaryPanel(btn.dataset.code));
+}
+function setModalSelection(code){
+ selectedEntityCode=code||selectedEntityCode;
+ renderSeniorCards();
+ renderContextSelect();
+}
+function openBeneficiaryPanel(code){
+ setModalSelection(code);
+ const bg=document.getElementById('beneficiaryModalBackdrop');
+ bg.hidden=false;
+ renderSelectedDetails();
+}
+function closeBeneficiaryPanel(){document.getElementById('beneficiaryModalBackdrop').hidden=true;}
+function recentRowsForEntity(e){return entityHistoryRows(e).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);}
 function renderHistory(){
- const cutoff=historyCutoff();const filtered=historyRows.filter(r=>{const d=new Date(r.date);return !isNaN(d)&&d>=cutoff&&(!selectedUnit||entities.find(e=>e.name===r.senior)?.branch_code===selectedUnit);}).sort((a,b)=>new Date(b.date)-new Date(a.date));
+ const cutoff=historyCutoff();
+ const filtered=historyRows.filter(r=>{const d=new Date(r.date);return !isNaN(d)&&d>=cutoff&&(!selectedUnit||entities.find(e=>e.name===r.senior)?.branch_code===selectedUnit);}).sort((a,b)=>new Date(b.date)-new Date(a.date));
  const confirmed=filtered.filter(r=>historyStatus(r)==='confirmed').length;const missed=filtered.filter(r=>['refused','missed'].includes(historyStatus(r))).length;const decided=filtered.filter(r=>historyStatus(r)!=='pending').length;const rate=decided?Math.round(confirmed/decided*100):null;
  document.getElementById('historyConfirmed').textContent=confirmed;document.getElementById('historyMissed').textContent=missed;document.getElementById('historyRate').textContent=rate===null?'—':rate+'%';
  const todayPlanned=(treatments||[]).filter(t=>isValidForToday(t)).length;const todayKey=new Date().toISOString().slice(0,10);const todayDecisions=historyRows.filter(r=>String(r.date||'').slice(0,10)===todayKey).length;document.getElementById('historyPending').textContent=Math.max(0,todayPlanned-todayDecisions);
- const bySenior=new Map();entities.forEach(e=>bySenior.set(e.name,{name:e.name,confirmed:0,total:0,color:e.card_color||'#2563EB'}));filtered.forEach(r=>{const x=bySenior.get(r.senior)||{name:r.senior||'Necunoscut',confirmed:0,total:0,color:'#64748B'};x.total++;if(historyStatus(r)==='confirmed')x.confirmed++;bySenior.set(x.name,x);});
- const chart=[...bySenior.values()].filter(x=>x.total).sort((a,b)=>b.total-a.total).slice(0,12);document.getElementById('adherenceChart').innerHTML=chart.length?chart.map(x=>{const pct=Math.round(x.confirmed/x.total*100);return `<div class="adherence-row"><div><b>${safe(x.name)}</b><span>${x.confirmed}/${x.total}</span></div><div class="adherence-track"><i style="width:${pct}%;--bar:${safe(x.color)}"></i></div><strong>${pct}%</strong></div>`;}).join(''):'<div class="empty-state">Istoricul va apărea după primele confirmări.</div>';
- document.getElementById('historyTimeline').innerHTML=filtered.length?filtered.slice(0,10).map(r=>{const state=historyStatus(r);const date=new Date(r.date);return `<article class="history-item ${state}"><span class="history-dot"></span><div><b>${safe(r.senior||'Beneficiar')} · ${safe(r.treatment||'Tratament')}</b><small>${safe(r.decision)}${r.reason?' · '+safe(r.reason):''}</small></div><time>${date.toLocaleDateString('ro-RO')}<br>${date.toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'})}</time></article>`;}).join(''):'<div class="empty-state">Nu există decizii în perioada selectată.</div>';
+ renderDashboardInsightTiles(filtered);
+ renderAdherenceCards(filtered);
+ renderSeniorCards();
+ document.getElementById('historyTimeline').innerHTML=filtered.length?filtered.slice(0,12).map(r=>{const state=historyStatus(r);const date=new Date(r.date);return `<article class="history-item ${state}"><span class="history-dot"></span><div><b>${safe(r.senior||'Beneficiar')} · ${safe(r.treatment||'Tratament')}</b><small>${safe(r.decision)}${r.reason?' · '+safe(r.reason):''}</small></div><time>${date.toLocaleDateString('ro-RO')}<br>${date.toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'})}</time></article>`;}).join(''):'<div class="empty-state">Nu există decizii în perioada selectată.</div>';
 }
 function renderSelectedDetails(){
  const e=entities.find(x=>x.entity_code===selectedEntityCode)||entities[0];
  if(!e)return;
  const todayTreat=(treatments||[]).filter(t=>t.entity_code===e.entity_code && isValidForToday(t)).sort((a,b)=>occurrence(a)-occurrence(b));
  const todayAgenda=(agendaItems||[]).filter(t=>t.entity_code===e.entity_code && isValidForToday(t)).sort((a,b)=>occurrence(a)-occurrence(b));
- document.getElementById('detailTitle').textContent=e.name;
- document.getElementById('detailSubtitle').textContent=`${e.entity_type} · ${e.branch_name||'Părinții mei'}`;
  const next=todayTreat[0];
- document.getElementById('detailNextTreatment').textContent=next?`${timeLabel(next.start_time)} · ${next.title}`:'-';
- document.getElementById('detailTodayCount').textContent=todayTreat.length;
- document.getElementById('detailAgendaCount').textContent=todayAgenda.length;
- document.getElementById('selectedTreatmentBody').innerHTML=todayTreat.length?todayTreat.map(t=>`<tr><td>${timeLabel(t.start_time)}</td><td><b>${safe(t.title)}</b><br><span class="muted">${safe(t.description||'')}</span></td><td>${safe(ruleLabel(t))}</td><td class="row-actions"><button class="mini-action" data-edit-treatment="${safe(t.id)}" type="button">Modifică</button><button class="mini-action danger" data-cancel-treatment="${safe(t.id)}" type="button">Anulează</button></td></tr>`).join(''):'<tr><td colspan="4">Nu există tratamente azi.</td></tr>';
- document.getElementById('selectedAgendaBody').innerHTML=todayAgenda.length?todayAgenda.map(t=>`<tr><td>${timeLabel(t.start_time)}</td><td><b>${safe(t.title)}</b></td><td>${safe(t.description||'')}</td></tr>`).join(''):'<tr><td colspan="3">Nu există activități azi.</td></tr>';
+ const pct=entityAdherencePercent(e);
+ const title=document.getElementById('bmTitle'); if(!title)return;
+ title.textContent=e.name;
+ document.getElementById('bmSubtitle').textContent=`${e.entity_type} · ${e.branch_name||'Fără grup / locație'}`;
+ document.getElementById('bmNextTreatment').textContent=next?`${timeLabel(next.start_time)} · ${next.title}`:'—';
+ document.getElementById('bmTodayCount').textContent=todayTreat.length;
+ document.getElementById('bmAgendaCount').textContent=todayAgenda.length;
+ document.getElementById('bmAdherenceRate').textContent=pct===null?'—':pct+'%';
+ document.getElementById('bmTreatmentBody').innerHTML=todayTreat.length?todayTreat.map(t=>`<tr><td>${timeLabel(t.start_time)}</td><td><b>${safe(t.title)}</b><br><span class="muted">${safe(t.description||'')}</span></td><td>${safe(ruleLabel(t))}</td><td class="row-actions"><button class="mini-action" data-edit-treatment="${safe(t.id)}" type="button">Modifică</button><button class="mini-action danger" data-cancel-treatment="${safe(t.id)}" type="button">Anulează</button></td></tr>`).join(''):'<tr><td colspan="4">Nu există tratamente azi.</td></tr>';
+ document.getElementById('bmAgendaBody').innerHTML=todayAgenda.length?todayAgenda.map(t=>`<tr><td>${timeLabel(t.start_time)}</td><td><b>${safe(t.title)}</b></td><td>${safe(t.description||'')}</td></tr>`).join(''):'<tr><td colspan="3">Nu există activități azi.</td></tr>';
+ const recent=recentRowsForEntity(e);
+ document.getElementById('bmRecentList').innerHTML=recent.length?recent.map(r=>`<article class="mini-history ${historyStatus(r)}"><b>${safe(r.treatment||'Tratament')}</b><span>${safe(r.decision)} · ${new Date(r.date).toLocaleDateString('ro-RO')}</span></article>`).join(''):'<div class="empty-state">Nu există istoric pentru perioada aleasă.</div>';
+ const q=encodeURIComponent(e.entity_code);
+ document.getElementById('bmJournal').href=`journal.html?beneficiary=${q}`;
+ document.getElementById('bmReports').href=`reports.html?beneficiary=${q}`;
+ document.getElementById('bmCard').href=`config.html?section=senior-card-colors&entity=${q}`;
  bindTreatmentRowActions();
 }
 function bindTreatmentRowActions(){
@@ -235,7 +363,7 @@ function openTreatmentEditor(id){
 }
 function openModal(type, keepForm=false){document.getElementById('modalBackdrop').hidden=false; document.getElementById('modalTitle').textContent=type==='agenda'?'Adaugă agendă':'Adaugă tratament'; document.getElementById('treatmentModalContent').hidden=type==='agenda'; document.getElementById('agendaModalContent').hidden=type!=='agenda'; if(type!=='agenda'&&!keepForm) resetTreatmentForm();}
 function closeModal(){document.getElementById('modalBackdrop').hidden=true;}
-document.getElementById('openTreatmentModal').onclick=()=>openModal('treatment'); document.getElementById('openAgendaModal').onclick=()=>openModal('agenda'); document.getElementById('closeModal').onclick=closeModal; document.getElementById('modalBackdrop').onclick=e=>{if(e.target.id==='modalBackdrop')closeModal();};
+const openTreatmentBtn=document.getElementById('openTreatmentModal');if(openTreatmentBtn)openTreatmentBtn.onclick=()=>openModal('treatment'); const openAgendaBtn=document.getElementById('openAgendaModal');if(openAgendaBtn)openAgendaBtn.onclick=()=>openModal('agenda'); document.getElementById('closeModal').onclick=closeModal; document.getElementById('modalBackdrop').onclick=e=>{if(e.target.id==='modalBackdrop')closeModal();}; document.getElementById('bmClose').onclick=closeBeneficiaryPanel; document.getElementById('beneficiaryModalBackdrop').onclick=e=>{if(e.target.id==='beneficiaryModalBackdrop')closeBeneficiaryPanel();}; document.getElementById('bmAddTreatment').onclick=()=>{openModal('treatment');Array.from(document.getElementById('seniorMultiSelect').options).forEach(o=>o.selected=o.value===selectedEntityCode);}; document.getElementById('bmAddAgenda').onclick=()=>{openModal('agenda');Array.from(document.getElementById('agendaSeniorSelect').options).forEach(o=>o.selected=o.value===selectedEntityCode);};
 document.getElementById('saveTreatment').onclick=async()=>{
  const result=document.getElementById('treatmentSaveResult');
  const entityCodes=Array.from(document.getElementById('seniorMultiSelect').selectedOptions).map(x=>x.value);
