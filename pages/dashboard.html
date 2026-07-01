@@ -14,7 +14,7 @@
 <body>
 <div class="app-shell">
  <aside class="sidebar">
-  <a class="brand" href="dashboard.html"><img src="../assets/logo.svg" alt="FamilyCare"><div><div class="brand-title">FamilyCare</div><div class="brand-subtitle">by Cademix</div><div class="brand-version">v1.0.73</div></div></a>
+  <a class="brand" href="dashboard.html"><img src="../assets/logo.svg" alt="FamilyCare"><div><div class="brand-title">FamilyCare</div><div class="brand-subtitle">by Cademix</div><div class="brand-version">v1.0.74</div></div></a>
   <button class="menu-toggle" type="button" id="menuToggle" title="Restrânge meniul">☰</button>
   <nav class="nav"><a class="active" href="dashboard.html"><span class="ico">🏠</span><span>Dashboard</span></a>
 <a href="journal.html"><span class="ico">📝</span><span>Jurnal</span></a>
@@ -46,10 +46,11 @@
     <a class="kpi warning dashboard-link-card" href="reports.html?report=pending"><span>Fără răspuns azi</span><b id="historyPending">0</b><small>din programul de astăzi</small></a>
    </div>
    <div class="dashboard-insight-grid">
-    <article class="dashboard-info-tile"><span>Plan azi</span><b id="todayPlanInfo">0 taskuri</b><small>tratamente și activități planificate</small></article>
-    <article class="dashboard-info-tile"><span>Atenție acum</span><b id="attentionInfo">0 situații</b><small>întârzieri, refuzuri sau lipsă răspuns</small></article>
-    <article class="dashboard-info-tile"><span>Următoarea acțiune</span><b id="nextActionInfo">—</b><small id="nextActionMeta">se actualizează automat</small></article>
+    <button class="dashboard-info-tile dashboard-info-button active" type="button" data-insight="plan" aria-expanded="true"><span>Plan azi</span><b id="todayPlanInfo">0 taskuri</b><small>tratamente și activități planificate</small><i aria-hidden="true">＋</i></button>
+    <button class="dashboard-info-tile dashboard-info-button" type="button" data-insight="attention" aria-expanded="false"><span>Atenție acum</span><b id="attentionInfo">0 situații</b><small>întârzieri, refuzuri sau lipsă răspuns</small><i aria-hidden="true">＋</i></button>
+    <button class="dashboard-info-tile dashboard-info-button" type="button" data-insight="next" aria-expanded="false"><span>Următoarea acțiune</span><b id="nextActionInfo">—</b><small id="nextActionMeta">se actualizează automat</small><i aria-hidden="true">＋</i></button>
    </div>
+   <div class="dashboard-insight-details" id="dashboardInsightDetails"></div>
    <div class="overview-grid dashboard-overview-grid">
     <div class="adherence-panel">
      <h3>Aderență pe beneficiar</h3>
@@ -58,21 +59,6 @@
     </div>
     <div class="history-panel"><h3>Istoric recent</h3><div id="historyTimeline" class="history-timeline"></div></div>
    </div>
-  </section>
-
-  <section class="section dashboard-seniors-section">
-   <div class="section-head-inline">
-    <div>
-     <h2 class="section-title">Beneficiari monitorizați</h2>
-     <p class="muted" id="seniorDisplayInfo"></p>
-    </div>
-    <div class="header-actions dashboard-filter-actions">
-     <input id="seniorSearch" class="senior-search" type="search" placeholder="Caută beneficiar">
-     <a class="btn" href="config.html?section=care-persons">Adaugă beneficiar</a>
-     <a class="btn" href="config.html?section=branches">Grup / locație</a>
-    </div>
-   </div>
-   <div class="dashboard-senior-cards compact-beneficiary-cards" id="dashboardSeniorCards"></div>
   </section>
 
   <section class="section card dashboard-structure-note">
@@ -164,19 +150,20 @@ let entities=[], treatments=[], agendaItems=[], historyRows=[], selectedEntityCo
 let knownTreatmentNames=['Pastila de tensiune','Furazolidon','Paracetamol','Aspirina','Vitamina D','Măsurare tensiune'];
 function pad(n){return String(n).padStart(2,'0')} function jsWeekday(d){const n=d.getDay();return n===0?7:n} function todayIso(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())} function addMonthsIso(m){const d=new Date();d.setMonth(d.getMonth()+m);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())} function currentTimeRounded(){const d=new Date();d.setMinutes(d.getMinutes()+10);d.setMinutes(Math.ceil(d.getMinutes()/5)*5,0,0);return pad(d.getHours())+':'+pad(d.getMinutes())} function safe(v){return String(v??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
 function updateNow(){const d=new Date();document.getElementById('nowInfo').innerHTML=`Azi <b>${WEEKDAYS[jsWeekday(d)]}, ${d.toLocaleDateString('ro-RO')} · ${pad(d.getHours())}:${pad(d.getMinutes())}</b>`} setInterval(updateNow,30000); updateNow();
-function mergeEntities(rows){const map=new Map();[...FALLBACK_ENTITIES,...(Array.isArray(rows)?rows:[])].filter(e=>/senior|senioră|seniora/i.test(String(e.entity_type||''))).forEach(e=>map.set(e.entity_code,{...(map.get(e.entity_code)||{}),...e})); return [...map.values()];}
+function mergeEntities(rows){const map=new Map();[...FALLBACK_ENTITIES,...(Array.isArray(rows)?rows:[])].filter(e=>e&&e.entity_code&&String(e.name||e.display_name||'').trim()).forEach(e=>map.set(e.entity_code,{...(map.get(e.entity_code)||{}),...e})); return [...map.values()];}
 async function loadEntities(){let rows=[];try{const [entityResponse,settingResponse]=await Promise.all([fetch('/api/entities?ts='+Date.now()),fetch('/api/config/senior-display-settings?ts='+Date.now())]);if(entityResponse.ok)rows=await entityResponse.json();if(settingResponse.ok){const settings=await settingResponse.json();displayLimit=Math.max(0,Number(settings?.[0]?.payload?.['Număr carduri vizibile'])||0);}}catch(e){} entities=mergeEntities(rows); selectedEntityCode=selectedEntityCode||entities[0]?.entity_code||''; renderUnitSelect();renderSeniorCards(); renderMultiSelects(); renderContextSelect(); renderSelectedDetails();}
 function filteredEntities(){const q=String(document.getElementById('seniorSearch')?.value||'').trim().toLowerCase();return entities.filter(e=>(!selectedUnit||e.branch_code===selectedUnit||e.branch_name===selectedUnit)&&(!q||`${e.name} ${e.entity_type} ${e.branch_name||''}`.toLowerCase().includes(q)));}
 function renderUnitSelect(){const s=document.getElementById('contextUnitSelect');const units=[...new Map(entities.map(e=>[e.branch_code||e.branch_name||'',{code:e.branch_code||e.branch_name||'',name:e.branch_name||e.branch_code||'Fără unitate'}])).values()].filter(x=>x.code);s.innerHTML='<option value="">Toate unitățile</option>'+units.map(x=>`<option value="${safe(x.code)}" ${x.code===selectedUnit?'selected':''}>${safe(x.name)}</option>`).join('');}
 function renderContextSelect(){const s=document.getElementById('contextSeniorSelect'); s.innerHTML=filteredEntities().map(e=>`<option value="${safe(e.entity_code)}" ${e.entity_code===selectedEntityCode?'selected':''}>${safe(e.name)} · ${safe(e.entity_type)}</option>`).join('');}
 function renderSeniorCards(){
  const box=document.getElementById('dashboardSeniorCards');
+ if(!box) return;
  const filtered=filteredEntities();
- document.getElementById('seniorDisplayInfo').textContent=`${filtered.length} beneficiar${filtered.length===1?'':'i'} în evidență${selectedUnit?' · filtrat pe grup/locație':''}`;
+ const info=document.getElementById('seniorDisplayInfo');
+ if(info) info.textContent=`${filtered.length} beneficiar${filtered.length===1?'':'i'} în evidență${selectedUnit?' · filtrat pe grup/locație':''}`;
  box.innerHTML=filtered.map(e=>{
   const todayTreat=(treatments||[]).filter(t=>t.entity_code===e.entity_code && isValidForToday(t));
   const todayAgenda=(agendaItems||[]).filter(t=>t.entity_code===e.entity_code && isValidForToday(t));
-  const rows=entityHistoryRows(e);
   const pct=entityAdherencePercent(e);
   const next=todayTreat.sort((a,b)=>occurrence(a)-occurrence(b))[0];
   return `<button type="button" class="dashboard-senior-card compact ${e.entity_code===selectedEntityCode?'active':''}" data-code="${safe(e.entity_code)}" style="--senior-card-bg:${safe(e.card_color||'#2563EB')};--senior-card-text:${safe(e.card_text_color||'#FFFFFF')}"><b>${safe(e.name)}</b><span>${safe(e.entity_type)} · ${safe(e.branch_name||'Fără grup')}</span><small>${todayTreat.length} trat. azi · ${todayAgenda.length} agendă · ${pct===null?'—':pct+'%'} aderență</small><em>${next?'Următor: '+timeLabel(next.start_time)+' '+safe(next.title):'Fără tratament azi'}</em></button>`;
@@ -217,15 +204,35 @@ function entityAdherencePercent(entity){
  const confirmed=rows.filter(r=>historyStatus(r)==='confirmed').length;
  return Math.round(confirmed/rows.length*100);
 }
+let activeInsight='plan';
+function todayPlanItems(){
+ const treat=(treatments||[]).filter(t=>isValidForToday(t)).map(t=>({...t,_type:'Tratament',_time:timeLabel(t.start_time),_entity:entities.find(e=>e.entity_code===t.entity_code)?.name||t.entity_name||'Beneficiar',_title:t.title||'Tratament'}));
+ const agenda=(agendaItems||[]).filter(t=>isValidForToday(t)).map(t=>({...t,_type:'Agendă',_time:timeLabel(t.start_time),_entity:entities.find(e=>e.entity_code===t.entity_code)?.name||t.entity_name||'Beneficiar',_title:t.title||'Activitate'}));
+ return [...treat,...agenda].sort((a,b)=>occurrence(a)-occurrence(b));
+}
+function attentionItems(filteredHistory){
+ return (filteredHistory||[]).filter(r=>['refused','missed','delayed'].includes(historyStatus(r))).slice(0,8).map(r=>({title:r.treatment||'Situație',meta:(r.senior||'Beneficiar')+' · '+(r.decision||'atenție'),date:r.date}));
+}
+function nextActionItem(){return todayPlanItems().filter(x=>occurrence(x)>=new Date()).sort((a,b)=>occurrence(a)-occurrence(b))[0]||todayPlanItems()[0]||null;}
+function renderInsightDetails(filteredHistory=[]){
+ const panel=document.getElementById('dashboardInsightDetails'); if(!panel)return;
+ document.querySelectorAll('[data-insight]').forEach(btn=>{const on=btn.dataset.insight===activeInsight;btn.classList.toggle('active',on);btn.setAttribute('aria-expanded',on?'true':'false');const i=btn.querySelector('i');if(i)i.textContent=on?'−':'＋';});
+ let title='Plan azi', link='treatment.html', items=[];
+ if(activeInsight==='plan'){items=todayPlanItems().map(x=>({title:x._time+' · '+x._title,meta:x._entity+' · '+x._type,code:x.entity_code}));link='treatment.html';title='Taskuri planificate azi';}
+ if(activeInsight==='attention'){items=attentionItems(filteredHistory);link='reports.html?report=exceptions';title='Situații care cer atenție';}
+ if(activeInsight==='next'){const n=nextActionItem();items=n?[{title:timeLabel(n.start_time)+' · '+(n.title||n._title||'Acțiune'),meta:(entities.find(e=>e.entity_code===n.entity_code)?.name||n.entity_name||'Beneficiar')+' · următoarea acțiune',code:n.entity_code}]:[];link='treatment.html';title='Următoarea acțiune';}
+ panel.innerHTML=`<div class="insight-detail-head"><b>${safe(title)}</b><a class="btn subtle-action" href="${safe(link)}">Deschide</a></div>`+(items.length?`<div class="insight-detail-list">${items.map((x,idx)=>`<button type="button" class="insight-detail-row" data-code="${safe(x.code||'')}"><span>${safe(x.title)}</span><small>${safe(x.meta||'')}</small></button>`).join('')}</div>`:'<div class="empty-state">Nu există elemente pentru acest card.</div>');
+ panel.querySelectorAll('.insight-detail-row[data-code]').forEach(btn=>btn.onclick=()=>{if(btn.dataset.code)openBeneficiaryPanel(btn.dataset.code);});
+}
 function renderDashboardInsightTiles(filteredHistory){
- const todayTreat=(treatments||[]).filter(t=>isValidForToday(t));
- const todayAgenda=(agendaItems||[]).filter(t=>isValidForToday(t));
- const trouble=(filteredHistory||[]).filter(r=>['refused','missed','delayed'].includes(historyStatus(r))).length;
- const upcoming=todayTreat.map(t=>({...t,_occ:occurrence(t)})).sort((a,b)=>a._occ-b._occ)[0];
- document.getElementById('todayPlanInfo').textContent=`${todayTreat.length+todayAgenda.length} taskuri`;
+ const todayItems=todayPlanItems();
+ const trouble=attentionItems(filteredHistory).length;
+ const upcoming=nextActionItem();
+ document.getElementById('todayPlanInfo').textContent=`${todayItems.length} taskuri`;
  document.getElementById('attentionInfo').textContent=`${trouble} situații`;
- document.getElementById('nextActionInfo').textContent=upcoming?`${timeLabel(upcoming.start_time)} · ${upcoming.title}`:'—';
- document.getElementById('nextActionMeta').textContent=upcoming?`${upcoming.entity_name||entities.find(e=>e.entity_code===upcoming.entity_code)?.name||'Beneficiar'}`:'nu există tratamente azi';
+ document.getElementById('nextActionInfo').textContent=upcoming?`${timeLabel(upcoming.start_time||upcoming._time)} · ${upcoming.title||upcoming._title}`:'—';
+ document.getElementById('nextActionMeta').textContent=upcoming?`${upcoming.entity_name||entities.find(e=>e.entity_code===upcoming.entity_code)?.name||'Beneficiar'}`:'nu există taskuri azi';
+ renderInsightDetails(filteredHistory||[]);
 }
 function renderAdherenceCards(filteredHistory){
  const cards=filteredEntities().map(e=>{
@@ -390,7 +397,8 @@ document.getElementById('saveTreatment').onclick=async()=>{
  }catch(e){result.textContent='Nu s-a putut salva: '+e.message;result.className='action-result show error';}
 };
 document.getElementById('saveAgenda').onclick=async()=>{const result=document.getElementById('agendaSaveResult'); const entityCodes=Array.from(document.getElementById('agendaSeniorSelect').selectedOptions).map(x=>x.value); const title=document.getElementById('agendaTitle').value.trim(); if(!entityCodes.length||!title){result.textContent='Alege seniori și completează activitatea.';result.className='action-result show error';return;} const payload={entityCodes,title,description:document.getElementById('agendaDetails').value.trim(),startDate:todayIso(),endDate:addMonthsIso(6),startTime:document.getElementById('agendaTime').value,recurrenceRule:'selected_weekdays',activeWeekdays:String(jsWeekday(new Date())),repeatEveryDays:1}; try{const r=await fetch('/api/agenda',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok)throw new Error(await r.text()); result.textContent='Activitatea a fost salvată.';result.className='action-result show success'; await loadAgenda();}catch(e){result.textContent='Nu s-a putut salva: '+e.message;result.className='action-result show error';}};
-document.getElementById('seniorSearch').addEventListener('input',()=>{renderSeniorCards();renderContextSelect();});
+const seniorSearchInput=document.getElementById('seniorSearch');if(seniorSearchInput)seniorSearchInput.addEventListener('input',()=>{renderSeniorCards();renderContextSelect();renderHistory();});
+document.querySelectorAll('[data-insight]').forEach(btn=>btn.addEventListener('click',()=>{activeInsight=btn.dataset.insight;renderHistory();}));
 document.getElementById('contextUnitSelect').addEventListener('change',e=>{selectedUnit=e.target.value;const first=filteredEntities()[0];if(first)selectedEntityCode=first.entity_code;renderSeniorCards();renderContextSelect();renderSelectedDetails();renderHistory();});
 document.getElementById('contextSeniorSelect').addEventListener('change',e=>{selectedEntityCode=e.target.value;renderSeniorCards();renderSelectedDetails();renderHistory();});
 document.getElementById('historyPeriod').addEventListener('change',e=>{historyDays=Number(e.target.value)||30;renderHistory();});

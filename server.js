@@ -410,7 +410,7 @@ function activeSql(value) {
 }
 function seniorScreenSql(value) {
   const v = String(value ?? '').trim().toLowerCase();
-  return /senior|senioră|seniora|beneficiar/.test(v) ? 'true' : 'false';
+  return ['nu','no','false','0','inactiv','inactive','off'].includes(v) ? 'false' : 'true';
 }
 function firstHeaderCte() {
   return `h0 as (select id from ${dqIdent(PGSCHEMA)}.care_header where coalesce(active,true)=true order by id limit 1),
@@ -1101,6 +1101,80 @@ async function handleAgendaApi(req, res, url) {
 }
 
 
+
+async function handleSeniorCardColorsConfigApi(req, res, section, id) {
+  if (section !== 'senior-card-colors') return false;
+  const table = dqIdent(PGSCHEMA) + '.config_record';
+  try {
+    if (req.method === 'GET' && !id) {
+      const q = dqIdent(PGSCHEMA);
+      const sql = `with seniors as (
+          select e.entity_code, coalesce(to_jsonb(e)->>'name', to_jsonb(e)->>'display_name', e.entity_code) as display_name,
+                 row_number() over(order by coalesce(to_jsonb(e)->>'name', to_jsonb(e)->>'display_name', e.entity_code), e.id) as rn
+          from ${q}.managed_entity e
+          where coalesce(e.active,true)=true
+        ), ranked as (
+          select c.id, c.payload, row_number() over(partition by coalesce(c.payload->>'Cod entitate','') order by c.id desc) as rn
+          from ${table} c
+          where c.section_key='senior-card-colors'
+        ), del_dupes as (
+          delete from ${table} c using ranked r where c.id=r.id and r.rn>1 returning c.id
+        ), ins_missing as (
+          insert into ${table}(section_key,payload,sort_order)
+          select 'senior-card-colors', jsonb_build_object('Cod entitate',s.entity_code,'Culoare fundal',case when mod(s.rn,6)=1 then '#2563EB' when mod(s.rn,6)=2 then '#0F766E' when mod(s.rn,6)=3 then '#7C3AED' when mod(s.rn,6)=4 then '#C2410C' when mod(s.rn,6)=5 then '#BE123C' else '#0369A1' end,'Culoare text','#FFFFFF'), 100 + s.rn
+          from seniors s
+          where not exists (select 1 from ${table} c where c.section_key='senior-card-colors' and coalesce(c.payload->>'Cod entitate','')=s.entity_code)
+          returning id
+        )
+        select coalesce(json_agg(row_to_json(t))::text,'[]') from (
+          select c.id, c.section_key, c.payload, c.sort_order
+          from seniors s
+          join ${table} c on c.section_key='senior-card-colors' and coalesce(c.payload->>'Cod entitate','')=s.entity_code
+          order by s.rn
+        ) t;`;
+      const out = await runPsql(sql);
+      send(res, 200, out || '[]', 'application/json; charset=utf-8');
+      return true;
+    }
+    if ((req.method === 'POST' && !id) || (req.method === 'PUT' && idOk(id))) {
+      const body = await readJson(req);
+      const code = String(body['Cod entitate'] || '').trim();
+      if (!code) { send(res, 400, 'Alege beneficiarul.'); return true; }
+      const payload = JSON.stringify({
+        'Cod entitate': code,
+        'Culoare fundal': body['Culoare fundal'] || '#2563EB',
+        'Culoare text': body['Culoare text'] || '#FFFFFF'
+      });
+      let sql;
+      if (req.method === 'PUT' && idOk(id)) {
+        sql = `with upd as (
+            update ${table} set payload=${dollar(payload)}::jsonb, updated_at=now()
+            where id=${Number(id)} and section_key='senior-card-colors'
+            returning id, payload
+          ), cleanup as (
+            delete from ${table} c using upd u
+            where c.section_key='senior-card-colors' and c.id<>u.id and coalesce(c.payload->>'Cod entitate','')=coalesce(u.payload->>'Cod entitate','')
+            returning c.id
+          ) select json_build_object('ok',true,'id',(select id from upd))::text;`;
+      } else {
+        sql = `with old as (delete from ${table} where section_key='senior-card-colors' and coalesce(payload->>'Cod entitate','')=${dollar(code)})
+          insert into ${table}(section_key,payload,sort_order) values ('senior-card-colors', ${dollar(payload)}::jsonb, 100)
+          returning json_build_object('ok',true,'id',id)::text;`;
+      }
+      const out = await runPsql(sql);
+      send(res, 200, out || '{"ok":true}', 'application/json; charset=utf-8');
+      return true;
+    }
+    if (req.method === 'DELETE' && idOk(id)) {
+      const sql = `delete from ${table} where id=${Number(id)} and section_key='senior-card-colors'; select json_build_object('ok',true)::text;`;
+      const out = await runPsql(sql);
+      send(res, 200, String(out||'').split('\n').pop() || '{"ok":true}', 'application/json; charset=utf-8');
+      return true;
+    }
+    send(res, 405, 'Method not allowed'); return true;
+  } catch (e) { send(res, 500, e.message || 'Database error'); return true; }
+}
+
 async function handleApi(req, res, url) {
   const parts = url.pathname.split('/').filter(Boolean); // api config section id
   if (parts[0] !== 'api' || parts[1] !== 'config') return false;
@@ -1108,6 +1182,7 @@ async function handleApi(req, res, url) {
   const id = parts[3];
   if (!sectionOk(section)) { send(res, 400, 'Invalid section'); return true; }
   if (section === 'mail-settings') { send(res, 403, 'Folosește endpointul securizat /api/mail-settings.'); return true; }
+  if (await handleSeniorCardColorsConfigApi(req, res, section, id)) return true;
   if (await handleDirectConfigApi(req, res, section, id)) return true;
   const table = dqIdent(PGSCHEMA) + '.config_record';
   try {
@@ -1151,7 +1226,7 @@ const requestHandler = async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (await handleMainAuthApi(req, res, url)) return;
   if (url.pathname === '/api/runtime-config') {
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.73', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.74', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1223,7 +1298,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.73 is running');
+  console.log('FamilyCare Main V1.0.74 is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
   console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);
