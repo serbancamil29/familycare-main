@@ -208,7 +208,7 @@ const TLS_PFX_PASSPHRASE = process.env.TLS_PFX_PASSPHRASE || 'familycare-local';
 const PROTOCOL = HTTPS_ENABLED ? 'https' : 'http';
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 const ADMIN_NAME = String(process.env.ADMIN_NAME || 'Administrator FamilyCare');
-// V1.0.77: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
+// V1.0.78: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
 // Pentru test fără autentificare se poate seta MAIN_AUTH_DISABLED=true, dar implicit login-ul este activ.
 const MAIN_AUTH_DISABLED = ['true','1','yes','da'].includes(String(process.env.MAIN_AUTH_DISABLED || process.env.FAMILYCARE_AUTH_DISABLED || '').trim().toLowerCase());
 const AUTH_REQUIRED = !MAIN_AUTH_DISABLED;
@@ -299,15 +299,22 @@ async function findMainLoginUser(identifier) {
   } catch (_) { return null; }
 }
 async function createMainLoginUser(body) {
-  const name = String(body.name || body.Nume || '').trim();
+  const name = String(body.name || body.Nume || body.user || body.Utilizator || '').trim();
   const phone = normalizePhone(body.phone || body.Telefon || '');
   const password = String(body.password || body.Parola || body['Parolă'] || '');
   const orgType = String(body.orgType || body['Tip organizație'] || 'familie_proprie').trim() || 'familie_proprie';
-  if (!name) throw new Error('Completează numele.');
+  if (!name) throw new Error('Completează utilizatorul.');
   if (!phone) throw new Error('Completează telefonul.');
   if (password.length < 6) throw new Error('Parola trebuie să aibă minimum 6 caractere pentru testare.');
-  const existing = await findMainLoginUser(phone);
-  if (existing) throw new Error('Există deja un user cu acest telefon.');
+  const existing = await findMainLoginUser(phone) || await findMainLoginUser(name);
+  if (existing) throw new Error('Există deja un user cu acest telefon sau utilizator.');
+
+  // V1.0.78: fiecare utilizator/aparținător primește propria organizație și grup implicit.
+  // Senior folosește aceste coduri ca să afișeze doar beneficiarii aparținătorului autentificat.
+  const headerCode = makeCode('CH');
+  const branchCode = makeCode('CB');
+  const orgName = orgType === 'retea' ? ('Rețeaua ' + name) : (orgType === 'camin' ? ('Cămin ' + name) : ('Familia ' + name));
+  const branchName = orgType === 'retea' || orgType === 'camin' ? 'Grup principal' : 'Familia mea';
   const salt = crypto.randomBytes(16).toString('hex');
   const iterations = 180000;
   const payload = JSON.stringify({
@@ -315,29 +322,36 @@ async function createMainLoginUser(body) {
     Utilizator:name,
     Telefon:phone,
     'Tip organizație':orgType,
+    HeaderCode:headerCode,
+    'ID organizație':headerCode,
+    Organizatie:orgName,
+    'Organizație / cont':orgName,
+    BranchCode:branchCode,
+    'Grup / locație':branchName,
     Salt:salt,
     Iterations:iterations,
     Hash:passwordHash(password, salt, iterations),
     Activ:true,
     CreatLa:new Date().toISOString()
   });
-  const orgName = orgType === 'retea' ? ('Rețeaua ' + name) : (orgType === 'camin' ? ('Cămin ' + name) : ('Familia ' + name));
-  const sql = `with ins_user as (
+  const sql = `with h_ins as (
+      insert into ${dqIdent(PGSCHEMA)}.care_header(header_code,name,context_type,coordinator_name,description,active)
+      values (${dollar(headerCode)}, ${dollar(orgName)}, ${dollar(orgType)}, ${dollar(name)}, 'Creat din login FamilyCare Main; folosit pentru legătura aparținător-beneficiari.', true)
+      returning id, header_code, name
+    ), b_ins as (
+      insert into ${dqIdent(PGSCHEMA)}.care_branch(care_header_id,branch_code,name,branch_type,coordinator_name,city,description,sort_order,active)
+      select id, ${dollar(branchCode)}, ${dollar(branchName)}, 'familie', ${dollar(name)}, '', 'Grup implicit creat la înregistrare.', 10, true from h_ins
+      returning id, branch_code, name
+    ), ins_user as (
       insert into ${dqIdent(PGSCHEMA)}.config_record(section_key,payload,sort_order)
       values ('main-login-user', ${dollar(payload)}::jsonb, 10)
       returning id
-    ), h0 as (
-      select id from ${dqIdent(PGSCHEMA)}.care_header where coalesce(active,true)=true order by id limit 1
-    ), h_ins as (
-      insert into ${dqIdent(PGSCHEMA)}.care_header(header_code,name,context_type,coordinator_name,description,active)
-      select ${dollar(makeCode('CH'))}, ${dollar(orgName)}, ${dollar(orgType)}, ${dollar(name)}, 'Creat din pagina de login FamilyCare Main', true
-      where not exists(select 1 from h0)
-      returning id
     )
-    select json_build_object('ok',true,'id',(select id from ins_user),'hasHeader',coalesce((select id from h0),(select id from h_ins)))::text;`;
+    select json_build_object('ok',true,'id',(select id from ins_user),'headerCode',(select header_code from h_ins),'branchCode',(select branch_code from b_ins))::text;`;
   const out = await runPsql(sql);
   return JSON.parse(String(out || '{}').split('\n').pop() || '{}');
 }
+
 function openSessionFor(res, req, name) {
   const token = crypto.randomBytes(32).toString('base64url');
   adminSessions.set(token, Date.now() + SESSION_TTL_MS);
@@ -352,7 +366,7 @@ async function handleMainAuthApi(req, res, url) {
   }
   if (url.pathname === '/api/auth/register' && req.method === 'POST') {
     try {
-      // V1.0.77: în perioada de testare, utilizatorul nou se poate crea direct din login,
+      // V1.0.78: în perioada de testare, utilizatorul nou se poate crea direct din login,
       // inclusiv după ce există deja primul cont.
       const body = await readJson(req);
       const result = await createMainLoginUser(body);
@@ -1340,7 +1354,7 @@ const requestHandler = async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (await handleMainAuthApi(req, res, url)) return;
   if (url.pathname === '/api/runtime-config') {
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.77', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.78', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1412,7 +1426,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.77 is running');
+  console.log('FamilyCare Main V1.0.78 is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
   console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);
