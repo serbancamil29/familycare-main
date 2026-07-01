@@ -18,15 +18,54 @@
       link.rel = 'noopener';
     });
   }
-  function ensureComplianceLink() {
+  function ensureMainNavigation() {
     const nav = document.querySelector('.sidebar .nav');
-    if (!nav || nav.querySelector('[data-compliance-link]')) return;
-    const link = document.createElement('a');
-    link.href = 'compliance.html';
-    link.dataset.complianceLink = 'true';
-    link.innerHTML = '<span class="ico">✓</span><span>Conformitate</span>';
-    const configLink = nav.querySelector('a[href$="config.html"]');
-    nav.insertBefore(link, configLink || nav.lastElementChild);
+    if (!nav) return;
+    if (!nav.querySelector('[data-compliance-link]')) {
+      const link = document.createElement('a');
+      link.href = 'compliance.html';
+      link.dataset.complianceLink = 'true';
+      link.innerHTML = '<span class="ico">\u2713</span><span>Conformitate</span>';
+      const configLink = nav.querySelector('a[href$="config.html"]');
+      nav.insertBefore(link, configLink || nav.lastElementChild);
+    }
+    if (!nav.querySelector('[data-reports-link]')) {
+      const reports = document.createElement('a');
+      reports.href = 'reports.html';
+      reports.dataset.reportsLink = 'true';
+      reports.innerHTML = '<span class="ico">\u25a6</span><span>Rapoarte</span>';
+      const configLink = nav.querySelector('a[href$="config.html"]');
+      nav.insertBefore(reports, configLink || nav.lastElementChild);
+    }
+  }
+  function improveShellControls() {
+    document.querySelectorAll('.context-row .muted').forEach(el => { if (el.textContent.includes('Care Header')) el.textContent = 'ID organiza\u021bie'; });
+    document.querySelectorAll('.context-row .pill').forEach(el => { if (el.textContent.trim() === 'Familie proprie') el.textContent = 'Familie / furnizor'; });
+    document.querySelectorAll('.sidebar .brand').forEach(link => {
+      link.href = 'company.html';
+      link.title = 'Datele organiza\u021biei';
+    });
+    const shell = document.querySelector('.app-shell');
+    const toggle = document.querySelector('.menu-toggle');
+    if (shell && toggle) {
+      const refresh = () => {
+        const collapsed = shell.classList.contains('menu-collapsed');
+        toggle.textContent = collapsed ? '\u203a' : '\u2039';
+        toggle.title = collapsed ? 'Extinde meniul' : 'Restr\u00e2nge meniul';
+        toggle.setAttribute('aria-label', toggle.title);
+      };
+      refresh();
+      toggle.addEventListener('click', () => requestAnimationFrame(refresh));
+    }
+    const titleBlock = document.querySelector('.topbar > div:first-child');
+    if (titleBlock && !document.querySelector('.app-print-button, #printReport')) {
+      const print = document.createElement('button');
+      print.type = 'button';
+      print.className = 'app-print-button';
+      print.textContent = 'Tip\u0103re\u0219te';
+      print.addEventListener('click', () => window.print());
+      titleBlock.appendChild(print);
+    }
   }
   function ensureAuthControls(cfg) {
     if (!cfg.authRequired || !document.querySelector('.sidebar') || document.querySelector('.sidebar-auth')) return;
@@ -42,9 +81,10 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const cfg = await getRuntimeConfig();
     applySeniorLinks(cfg.seniorBaseUrl || '');
-    ensureComplianceLink();
+    ensureMainNavigation();
+    improveShellControls();
     ensureAuthControls(cfg);
-    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.67'); });
+    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.72'); });
   }, { once: true });
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

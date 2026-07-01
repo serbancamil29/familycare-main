@@ -371,6 +371,32 @@ function dollar(text) {
   return '$' + tag + '$' + String(text) + '$' + tag + '$';
 }
 
+const SUBSCRIPTION_RULES = {
+  Basic:{maxPatients:2,maxRecipients:1,features:['confirmations','missed-alerts','journal']},
+  Family:{maxPatients:2,maxRecipients:3,features:['confirmations','missed-alerts','journal','family-notifications']},
+  Premium:{maxPatients:4,maxRecipients:null,features:['confirmations','missed-alerts','journal','family-notifications','doctor-export']},
+  Unlimited:{maxPatients:null,maxRecipients:null,features:['confirmations','missed-alerts','journal','family-notifications','doctor-export','multi-unit']}
+};
+async function getSubscriptionStatus(){
+  let selection={};
+  try{selection=JSON.parse(await runPsql(`select coalesce((select payload::text from ${dqIdent(PGSCHEMA)}.config_record where section_key='subscription-selection' order by id desc limit 1),'{}');`)||'{}');}catch(_){}
+  const plan=SUBSCRIPTION_RULES[selection.Plan]?selection.Plan:'Basic';
+  const periodMonths=[1,3,6,12].includes(Number(selection['Perioadă luni']))?Number(selection['Perioadă luni']):1;
+  let usage={beneficiaries:0,units:0};
+  try{usage=JSON.parse(await runPsql(`select json_build_object('beneficiaries',(select count(*) from ${dqIdent(PGSCHEMA)}.managed_entity where coalesce(active,true)=true and coalesce(allows_senior_screen,true)=true),'units',(select count(*) from ${dqIdent(PGSCHEMA)}.care_branch where coalesce(active,true)=true))::text;`)||'{}');}catch(_){}
+  return {ok:true,plan,periodMonths,price:selection['Preț']||'',...SUBSCRIPTION_RULES[plan],usage};
+}
+function limitedRecipients(value,status){
+  const unique=[...new Set(String(value||'').split(/[;,\s]+/).map(x=>x.trim()).filter(Boolean))];
+  return status.maxRecipients===null?unique.join(','):unique.slice(0,status.maxRecipients).join(',');
+}
+async function handleSubscriptionApi(req,res,url){
+  if(url.pathname!=='/api/subscription/status')return false;
+  if(req.method!=='GET'){send(res,405,'Method not allowed');return true}
+  send(res,200,JSON.stringify(await getSubscriptionStatus()),'application/json; charset=utf-8');
+  return true;
+}
+
 
 // V1.0.70: configurările esențiale din Main sunt legate direct la tabelele reale citite de Senior.
 // Nu mai salvăm persoane/ramificații doar generic în config_record.
@@ -406,7 +432,7 @@ function directConfigSelectSql(section) {
   ) t;`;
   if (section === 'branches') return `select coalesce(json_agg(row_to_json(t))::text,'[]') from (
     select b.id, 'branches' as section_key,
-      jsonb_build_object('Denumire ramificație',b.name,'Tip',b.branch_type,'Oraș',coalesce(b.city,''),'Coordonator',coalesce(b.coordinator_name,'')) as payload,
+      jsonb_build_object('Denumire ramificație',b.name,'Tip',b.branch_type,'Oraș',coalesce(b.city,''),'Arie / județ / țară',coalesce(b.description,''),'Coordonator',coalesce(b.coordinator_name,'')) as payload,
       b.sort_order
     from ${q}.care_branch b where coalesce(b.active,true)=true order by b.sort_order,b.id
   ) t;`;
@@ -446,7 +472,7 @@ function directConfigInsertSql(section, b) {
     returning json_build_object('ok',true,'id',id)::text;`;
   if (section === 'branches') return `with ${firstHeaderCte()}
     insert into ${q}.care_branch(care_header_id,branch_code,name,branch_type,coordinator_name,city,description,sort_order,active)
-    select id, ${dollar(makeCode('CB'))}, ${dollar(b['Denumire ramificație']||'Ramificație')}, ${dollar(b['Tip']||'familie')}, ${dollar(b['Coordonator']||'')}, ${dollar(b['Oraș']||'')}, '', 100, true from h
+    select id, ${dollar(makeCode('CB'))}, ${dollar(b['Denumire ramificație']||'Unitate')}, ${dollar(b['Tip']||'familie')}, ${dollar(b['Coordonator']||'')}, ${dollar(b['Oraș']||'')}, ${dollar(b['Arie / județ / țară']||'')}, 100, true from h
     returning json_build_object('ok',true,'id',id)::text;`;
   if (section === 'care-persons') {
     const branch = String(b['Ramificație']||'').trim();
@@ -472,7 +498,7 @@ function directConfigUpdateSql(section, id, b) {
   const q = dqIdent(PGSCHEMA);
   const n = Number(id);
   if (section === 'care-header') return `update ${q}.care_header set name=${dollar(b['Denumire']||'FamilyCare')}, context_type=${dollar(b['Tip context']||'familie_proprie')}, coordinator_name=${dollar(b['Coordonator']||'')}, description=${dollar(b['Detalii']||'')}, updated_at=now() where id=${n} returning json_build_object('ok',true,'id',id)::text;`;
-  if (section === 'branches') return `update ${q}.care_branch set name=${dollar(b['Denumire ramificație']||'Ramificație')}, branch_type=${dollar(b['Tip']||'familie')}, city=${dollar(b['Oraș']||'')}, coordinator_name=${dollar(b['Coordonator']||'')}, updated_at=now() where id=${n} returning json_build_object('ok',true,'id',id)::text;`;
+  if (section === 'branches') return `update ${q}.care_branch set name=${dollar(b['Denumire ramificație']||'Unitate')}, branch_type=${dollar(b['Tip']||'familie')}, city=${dollar(b['Oraș']||'')}, description=${dollar(b['Arie / județ / țară']||'')}, coordinator_name=${dollar(b['Coordonator']||'')}, updated_at=now() where id=${n} returning json_build_object('ok',true,'id',id)::text;`;
   if (section === 'care-persons') {
     const branch = String(b['Ramificație']||'').trim();
     return `with br as (select id from ${q}.care_branch where coalesce(active,true)=true and (branch_code=${dollar(branch)} or name=${dollar(branch)}) order by id limit 1)
@@ -496,7 +522,16 @@ async function handleDirectConfigApi(req, res, section, id) {
   try {
     let sql = null;
     if (req.method === 'GET' && !id) sql = directConfigSelectSql(section);
-    else if (req.method === 'POST' && !id) sql = directConfigInsertSql(section, await readJson(req));
+    else if (req.method === 'POST' && !id) {
+      const body=await readJson(req);
+      if(section==='care-persons' && seniorScreenSql(body['Tip entitate']||'senior')==='true'){
+        const subscription=await getSubscriptionStatus();
+        if(subscription.maxPatients!==null && Number(subscription.usage?.beneficiaries||0)>=subscription.maxPatients){
+          send(res,402,JSON.stringify({ok:false,error:`Planul ${subscription.plan} permite maximum ${subscription.maxPatients} beneficiari. Schimbă planul din Configurări > Abonament.`}),'application/json; charset=utf-8');return true;
+        }
+      }
+      sql = directConfigInsertSql(section, body);
+    }
     else if (req.method === 'PUT' && idOk(id)) sql = directConfigUpdateSql(section, id, await readJson(req));
     else if (req.method === 'DELETE' && idOk(id)) sql = directConfigDeleteSql(section, id);
     else { send(res, 405, 'Method not allowed'); return true; }
@@ -847,7 +882,8 @@ async function handleTreatmentApi(req, res, url) {
       const esc = Number(b.escalationMinutes || 30) || 30;
       const emailOnCreate = b.emailOnCreate ? 'true' : 'false';
       const emailOnFinish = b.emailOnFinish ? 'true' : 'false';
-      const recipients = b.emailRecipients || '';
+      const subscription = await getSubscriptionStatus();
+      const recipients = limitedRecipients(b.emailRecipients || '', subscription);
       const entityCodes = Array.isArray(b.entityCodes) && b.entityCodes.length ? b.entityCodes : [b.entityCode || 'ME-0001'];
       const entityList = entityCodes.map(x => dollar(x)).join(',');
       const sql = `
@@ -920,7 +956,8 @@ async function handleTreatmentApi(req, res, url) {
       const esc = Number(b.escalationMinutes || 30) || 30;
       const emailOnCreate = b.emailOnCreate ? 'true' : 'false';
       const emailOnFinish = b.emailOnFinish ? 'true' : 'false';
-      const recipients = b.emailRecipients || '';
+      const subscription = await getSubscriptionStatus();
+      const recipients = limitedRecipients(b.emailRecipients || '', subscription);
       const entityCode = (Array.isArray(b.entityCodes) && b.entityCodes[0]) || b.entityCode || '';
       const entityUpdate = entityCode ? `, care_header_id = e.care_header_id, care_branch_id = e.care_branch_id, entity_id = e.id` : '';
       const fromJoin = entityCode ? ` from ${dqIdent(PGSCHEMA)}.managed_entity e where cs.id=${itemId} and e.entity_code=${dollar(entityCode)} ` : ` where cs.id=${itemId} `;
@@ -1114,7 +1151,7 @@ const requestHandler = async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (await handleMainAuthApi(req, res, url)) return;
   if (url.pathname === '/api/runtime-config') {
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.70', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.72', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1126,6 +1163,7 @@ const requestHandler = async (req, res) => {
     return;
   }
   if (await handleMailSettingsApi(req, res, url)) return;
+  if (await handleSubscriptionApi(req, res, url)) return;
   if (await handleSeniorSoundSettingsApi(req, res, url)) return;
   if (await handleFamilyContactApi(req, res, url)) return;
   if (await handleTreatmentConfirmApi(req, res, url)) return;
@@ -1185,7 +1223,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.70 Connected Test No Auth is running');
+  console.log('FamilyCare Main V1.0.72 is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
   console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);

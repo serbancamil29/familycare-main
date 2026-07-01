@@ -498,6 +498,14 @@ body { overscroll-behavior-y:none; }
 .pwa-install-button { position:fixed; right:max(18px, env(safe-area-inset-right)); bottom:max(18px, env(safe-area-inset-bottom)); z-index:5000; min-height:48px; border:0; border-radius:999px; padding:12px 18px; background:#2563EB; color:#fff; font:800 14px/1.2 Inter,Segoe UI,Arial,sans-serif; box-shadow:0 14px 30px rgba(37,99,235,.32); cursor:pointer; }
 .pwa-install-button[hidden] { display:none; }
 html.pwa-standalone .pwa-install-button { display:none; }
+
+/* V1.0.72: quieter navigation and reusable print action. */
+.menu-toggle{font-size:25px!important;font-family:Georgia,serif!important;line-height:1!important;border-radius:12px!important}
+.app-print-button{margin-top:10px;border:1px solid var(--border,#d7e0ee);background:var(--card,#fff);color:var(--text,#17233b);border-radius:999px;padding:7px 12px;font-weight:800;cursor:pointer}
+@media print{
+  .sidebar,.menu-toggle,.pwa-install-button,.app-print-button,.header-actions,.row-actions,.modal-backdrop,.app-modal-backdrop{display:none!important}
+  .app-shell,.main{display:block!important}.main{padding:0!important}.section,.card{box-shadow:none!important;break-inside:avoid}
+}
 @media (max-width:1000px) {
   html, body, .app-shell, .main { max-width:100%; overflow-x:hidden; }
   .main { padding-left:max(18px, env(safe-area-inset-left)); padding-right:max(18px, env(safe-area-inset-right)); }

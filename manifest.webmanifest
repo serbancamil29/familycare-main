@@ -19,7 +19,7 @@
   "shortcuts": [
     {"name":"Dashboard","url":"/pages/dashboard.html","icons":[{"src":"/assets/icon-192.png","sizes":"192x192"}]},
     {"name":"Tratamente","url":"/pages/treatment.html","icons":[{"src":"/assets/icon-192.png","sizes":"192x192"}]},
-    {"name":"Agendă","url":"/pages/agenda.html","icons":[{"src":"/assets/icon-192.png","sizes":"192x192"}]},
+    {"name":"Rapoarte","url":"/pages/reports.html","icons":[{"src":"/assets/icon-192.png","sizes":"192x192"}]},
     {"name":"Conformitate","url":"/pages/compliance.html","icons":[{"src":"/assets/icon-192.png","sizes":"192x192"}]}
   ]
 }

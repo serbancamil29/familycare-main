@@ -1,6 +1,6 @@
 {
   "name": "familycare-main-render",
-  "version": "1.0.70",
+  "version": "1.0.72",
   "private": true,
   "scripts": {
     "start": "node server.js",
