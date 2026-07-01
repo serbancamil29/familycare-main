@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ro">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+ <meta name="theme-color" content="#1D4ED8">
+ <link rel="manifest" href="../manifest.webmanifest">
+ <link rel="apple-touch-icon" href="../assets/icon-192.png">
+ <link rel="stylesheet" href="../styles/common.css">
+ <link rel="stylesheet" href="../styles/compliance.css">
+ <title>Autentificare - FamilyCare Main</title>
+</head>
+<body class="main-login-body">
+ <main class="main-login-screen">
+  <section class="main-login-card" data-mode="login" aria-labelledby="loginTitle">
+   <div class="main-login-brand"><img src="../assets/logo.svg" alt=""><div><b>FamilyCare Main</b><span>Acces aparținător / furnizor · v1.0.88</span></div></div>
+   <div class="security-mark" aria-hidden="true">✓</div>
+   <h1 id="loginTitle">Autentificare</h1>
+   <p id="loginLead">Intră în cont cu telefonul sau utilizatorul configurat.</p>
+   <div class="login-mode-switch" role="tablist" aria-label="Mod autentificare">
+    <button type="button" class="active" id="loginTab" role="tab" aria-selected="true">Intră în cont</button>
+    <button type="button" id="registerTab" role="tab" aria-selected="false">Utilizator nou</button>
+   </div>
+   <form id="mainLoginForm" class="main-login-form" autocomplete="off">
+    <label for="loginIdentifier">Telefon sau utilizator</label>
+    <input id="loginIdentifier" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="text" required>
+    <label for="loginPassword">Parolă</label>
+    <input id="loginPassword" type="password" autocomplete="new-password" minlength="6" required>
+    <p id="loginError" class="login-error" role="alert" hidden></p>
+    <button type="submit" class="btn primary">Intră în FamilyCare</button>
+   </form>
+   <form id="registerForm" class="main-login-form" hidden autocomplete="off">
+    <label for="regName">Utilizator</label>
+    <input id="regName" type="text" autocomplete="name" placeholder="Ex: Camil Popescu" required>
+    <label for="regPassword">Parolă</label>
+    <input id="regPassword" type="password" autocomplete="new-password" minlength="6" required>
+    <label for="regPhone">Telefon</label>
+    <input id="regPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="Ex: 07xxxxxxxx" required>
+    <label for="regOrgType">Tip organizație</label>
+    <select id="regOrgType" required>
+     <option value="familie_proprie">Familie proprie</option>
+     <option value="familie_extinsa">Familie extinsă</option>
+     <option value="retea">Rețea / furnizor</option>
+     <option value="camin">Cămin / locație</option>
+    </select>
+    <p id="registerError" class="login-error" role="alert" hidden></p>
+    <button type="submit" class="btn primary">Creează utilizator și intră</button>
+   </form>
+   <small id="loginNote">Pentru testare, orice utilizator nou se poate crea din acest ecran. După validare putem restrânge crearea de conturi doar la administrator.</small>
+  </section>
+ </main>
+ <script>
+ (()=>{
+  'use strict';
+  const loginForm=document.getElementById('mainLoginForm');
+  const registerForm=document.getElementById('registerForm');
+  const loginError=document.getElementById('loginError');
+  const registerError=document.getElementById('registerError');
+  const loginTab=document.getElementById('loginTab');
+  const registerTab=document.getElementById('registerTab');
+  const title=document.getElementById('loginTitle');
+  const lead=document.getElementById('loginLead');
+  const params=new URLSearchParams(location.search);
+  const requested=params.get('next')||'/pages/dashboard.html';
+  const next=requested.startsWith('/pages/')&&!requested.includes('main-login')?requested:'/pages/dashboard.html';
+  function clearCredentialFields(){
+    ['loginIdentifier','loginPassword','regName','regPassword','regPhone'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  }
+  clearCredentialFields();
+  window.addEventListener('pageshow', clearCredentialFields);
+  setTimeout(clearCredentialFields, 120);
+  function setTab(tab){
+    const isRegister=tab==='register';
+    const card=document.querySelector('.main-login-card');
+    if(card) card.dataset.mode=isRegister?'register':'login';
+    loginForm.hidden=isRegister;
+    registerForm.hidden=!isRegister;
+    loginTab.classList.toggle('active',!isRegister);
+    registerTab.classList.toggle('active',isRegister);
+    loginTab.setAttribute('aria-selected',String(!isRegister));
+    registerTab.setAttribute('aria-selected',String(isRegister));
+    title.textContent=isRegister?'Utilizator nou':'Autentificare';
+    lead.textContent=isRegister?'Completează utilizatorul, parola, telefonul și tipul organizației.':'Intră în cont cu telefonul sau utilizatorul configurat.';
+    loginError.hidden=true; registerError.hidden=true;
+    setTimeout(()=>{ const first=(isRegister?document.getElementById('regName'):document.getElementById('loginIdentifier')); first&&first.focus(); },30);
+  }
+  loginTab.addEventListener('click',()=>setTab('login'));
+  registerTab.addEventListener('click',()=>setTab('register'));
+  fetch('/api/auth/session',{cache:'no-store'}).then(r=>r.json()).then(s=>{
+    if(s.authenticated) location.replace(next);
+  }).catch(()=>{});
+  loginForm.addEventListener('submit',async event=>{
+   event.preventDefault(); loginError.hidden=true;
+   const button=loginForm.querySelector('button[type="submit"]'); button.disabled=true;
+   try{
+    const identifier=document.getElementById('loginIdentifier').value;
+    const response=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier,phone:identifier,user:identifier,password:document.getElementById('loginPassword').value})});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||'Autentificarea nu a reușit.');
+    location.replace(next);
+   }catch(err){loginError.textContent=err.message||'Autentificarea nu a reușit.';loginError.hidden=false;button.disabled=false;}
+  });
+  registerForm.addEventListener('submit',async event=>{
+   event.preventDefault(); registerError.hidden=true;
+   const button=registerForm.querySelector('button[type="submit"]'); button.disabled=true;
+   try{
+    const response=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('regName').value,user:document.getElementById('regName').value,password:document.getElementById('regPassword').value,phone:document.getElementById('regPhone').value,orgType:document.getElementById('regOrgType').value})});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||'Contul nu a putut fi creat.');
+    location.replace(next);
+   }catch(err){registerError.textContent=err.message||'Contul nu a putut fi creat.';registerError.hidden=false;button.disabled=false;}
+   finally{button.disabled=false;}
+  });
+ })();
+ </script>
+</body>
+</html>
