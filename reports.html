@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ro">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+ <meta name="theme-color" content="#1D4ED8">
+ <link rel="manifest" href="../manifest.webmanifest">
+ <link rel="apple-touch-icon" href="../assets/icon-192.png">
+ <link rel="stylesheet" href="../styles/common.css">
+ <link rel="stylesheet" href="../styles/compliance.css">
+ <title>Autentificare - FamilyCare Main</title>
+</head>
+<body class="main-login-body">
+ <main class="main-login-screen">
+  <section class="main-login-card" aria-labelledby="loginTitle">
+   <div class="main-login-brand"><img src="../assets/logo.svg" alt=""><div><b>FamilyCare Main</b><span>Acces familie / furnizor · v1.0.75</span></div></div>
+   <div class="security-mark" aria-hidden="true">✓</div>
+   <h1 id="loginTitle">Autentificare</h1>
+   <p id="loginLead">Intră cu telefonul și parola contului tău.</p>
+   <form id="mainLoginForm" class="main-login-form">
+    <label for="loginPhone">Telefon</label>
+    <input id="loginPhone" type="tel" autocomplete="tel" inputmode="tel" required>
+    <label for="loginPassword">Parolă</label>
+    <input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required>
+    <p id="loginError" class="login-error" role="alert" hidden></p>
+    <button type="submit" class="btn primary">Intră în FamilyCare</button>
+    <button type="button" class="btn" id="showRegisterBtn" hidden>Adaugă user nou</button>
+   </form>
+   <form id="registerForm" class="main-login-form" hidden>
+    <label for="regName">Nume</label>
+    <input id="regName" type="text" autocomplete="name" required>
+    <label for="regPhone">Telefon</label>
+    <input id="regPhone" type="tel" autocomplete="tel" inputmode="tel" required>
+    <label for="regPassword">Parolă</label>
+    <input id="regPassword" type="password" autocomplete="new-password" minlength="6" required>
+    <label for="regOrgType">Tip organizație</label>
+    <select id="regOrgType" required>
+     <option value="familie_proprie">Familie proprie</option>
+     <option value="familie_extinsa">Familie extinsă</option>
+     <option value="retea">Rețea / furnizor</option>
+     <option value="camin">Cămin / locație</option>
+    </select>
+    <p id="registerError" class="login-error" role="alert" hidden></p>
+    <button type="submit" class="btn primary">Creează cont și intră</button>
+    <button type="button" class="btn" id="backToLoginBtn">Înapoi la login</button>
+   </form>
+   <small id="loginNote">Dacă aplicația nu are încă niciun cont, creezi primul user direct de aici.</small>
+  </section>
+ </main>
+ <script>
+ (()=>{
+  'use strict';
+  const loginForm=document.getElementById('mainLoginForm');
+  const registerForm=document.getElementById('registerForm');
+  const loginError=document.getElementById('loginError');
+  const registerError=document.getElementById('registerError');
+  const showRegisterBtn=document.getElementById('showRegisterBtn');
+  const backBtn=document.getElementById('backToLoginBtn');
+  const title=document.getElementById('loginTitle');
+  const lead=document.getElementById('loginLead');
+  const params=new URLSearchParams(location.search);
+  const requested=params.get('next')||'/pages/dashboard.html';
+  const next=requested.startsWith('/pages/')&&!requested.includes('main-login')?requested:'/pages/dashboard.html';
+  function showRegister(){loginForm.hidden=true;registerForm.hidden=false;title.textContent='Adaugă user nou';lead.textContent='Primul cont creează accesul în Main și tipul organizației.';registerError.hidden=true;}
+  function showLogin(){registerForm.hidden=true;loginForm.hidden=false;title.textContent='Autentificare';lead.textContent='Intră cu telefonul și parola contului tău.';loginError.hidden=true;}
+  showRegisterBtn.addEventListener('click',showRegister);
+  backBtn.addEventListener('click',showLogin);
+  fetch('/api/auth/session',{cache:'no-store'}).then(r=>r.json()).then(s=>{
+    if(s.authenticated) location.replace(next);
+    if(!s.hasUsers){ showRegisterBtn.hidden=false; showRegister(); }
+    else showRegisterBtn.hidden=true;
+  }).catch(()=>{showRegisterBtn.hidden=false;});
+  loginForm.addEventListener('submit',async event=>{
+   event.preventDefault(); loginError.hidden=true;
+   const button=loginForm.querySelector('button[type="submit"]'); button.disabled=true;
+   try{
+    const response=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:document.getElementById('loginPhone').value,password:document.getElementById('loginPassword').value})});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||'Autentificarea nu a reușit.');
+    location.replace(next);
+   }catch(err){loginError.textContent=err.message||'Autentificarea nu a reușit.';loginError.hidden=false;button.disabled=false;}
+  });
+  registerForm.addEventListener('submit',async event=>{
+   event.preventDefault(); registerError.hidden=true;
+   const button=registerForm.querySelector('button[type="submit"]'); button.disabled=true;
+   try{
+    const response=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('regName').value,phone:document.getElementById('regPhone').value,password:document.getElementById('regPassword').value,orgType:document.getElementById('regOrgType').value})});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||'Contul nu a putut fi creat.');
+    location.replace(next);
+   }catch(err){registerError.textContent=err.message||'Contul nu a putut fi creat.';registerError.hidden=false;button.disabled=false;}
+  });
+ })();
+ </script>
+</body>
+</html>
