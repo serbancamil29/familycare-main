@@ -208,7 +208,7 @@ const TLS_PFX_PASSPHRASE = process.env.TLS_PFX_PASSPHRASE || 'familycare-local';
 const PROTOCOL = HTTPS_ENABLED ? 'https' : 'http';
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 const ADMIN_NAME = String(process.env.ADMIN_NAME || 'Administrator FamilyCare');
-// V1.0.76: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
+// V1.0.77: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
 // Pentru test fără autentificare se poate seta MAIN_AUTH_DISABLED=true, dar implicit login-ul este activ.
 const MAIN_AUTH_DISABLED = ['true','1','yes','da'].includes(String(process.env.MAIN_AUTH_DISABLED || process.env.FAMILYCARE_AUTH_DISABLED || '').trim().toLowerCase());
 const AUTH_REQUIRED = !MAIN_AUTH_DISABLED;
@@ -352,7 +352,7 @@ async function handleMainAuthApi(req, res, url) {
   }
   if (url.pathname === '/api/auth/register' && req.method === 'POST') {
     try {
-      // V1.0.76: în perioada de testare, utilizatorul nou se poate crea direct din login,
+      // V1.0.77: în perioada de testare, utilizatorul nou se poate crea direct din login,
       // inclusiv după ce există deja primul cont.
       const body = await readJson(req);
       const result = await createMainLoginUser(body);
@@ -1340,7 +1340,7 @@ const requestHandler = async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (await handleMainAuthApi(req, res, url)) return;
   if (url.pathname === '/api/runtime-config') {
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.76', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.77', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1412,7 +1412,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.76 is running');
+  console.log('FamilyCare Main V1.0.77 is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
   console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);

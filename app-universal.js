@@ -76,7 +76,7 @@
     applySeniorLinks(cfg.seniorBaseUrl || '');
     improveShellControls();
     ensureAuthControls(cfg);
-    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.76'); });
+    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.77'); });
   }, { once: true });
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
