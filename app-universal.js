@@ -38,9 +38,17 @@
       return `<a class="${active ? 'active' : ''}" href="${href}"${attrs}><span class="ico">${icon}</span><span>${label}</span></a>`;
     }).join('');
   }
-  function improveShellControls() {
-    document.querySelectorAll('.context-row .muted').forEach(el => { if (el.textContent.includes('Care Header')) el.textContent = 'ID organiza\u021bie'; });
-    document.querySelectorAll('.context-row .pill').forEach(el => { if (el.textContent.trim() === 'Familie proprie') el.textContent = 'Familie / furnizor'; });
+  function improveShellControls(cfg = {}) {
+    const userName = String(cfg.userName || cfg.name || 'Utilizator autentificat');
+    const orgName = String(cfg.headerName || cfg.organizationName || 'Organizație curentă');
+    const orgCode = String(cfg.headerCode || '');
+    document.querySelectorAll('.context-card').forEach(card => {
+      if (card.closest('.modal') || card.classList.contains('keep-context-card')) return;
+      const hasSelects = card.querySelector('.context-selects') || card.textContent.includes('ID organiza') || card.textContent.includes('Care Header');
+      if (!hasSelects) return;
+      card.classList.add('auth-context-card');
+      card.innerHTML = `<div class="context-row"><div><span class="muted">Utilizator autentificat</span><br><b>${userName.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</b></div><span class="pill">${orgCode ? orgCode.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) : 'Cont activ'}</span></div><div class="context-auth-org"><span>Organizație</span><strong>${orgName.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</strong></div>`;
+    });
     document.querySelectorAll('.sidebar .brand').forEach(link => {
       link.href = 'company.html';
       link.title = 'Datele organiza\u021biei';
@@ -63,7 +71,7 @@
     if (!cfg.authRequired || !document.querySelector('.sidebar') || document.querySelector('.sidebar-auth')) return;
     const box = document.createElement('div');
     box.className = 'sidebar-auth';
-    box.innerHTML = `<span class="sidebar-auth-name">${String(cfg.authenticated ? 'Sesiune securizată' : 'Neautentificat')}</span><button type="button" class="sidebar-logout">Ieșire sigură</button>`;
+    box.innerHTML = `<span class="sidebar-auth-name">${String(cfg.authenticated ? (cfg.userName || cfg.name || 'Sesiune securizată') : 'Neautentificat')}</span><button type="button" class="sidebar-logout">Ieșire sigură</button>`;
     box.querySelector('button').addEventListener('click', async () => {
       try { await fetch('/api/auth/logout', { method:'DELETE' }); } catch (_) {}
       location.href = '/pages/main-login.html';
@@ -74,9 +82,9 @@
     const cfg = await getRuntimeConfig();
     ensureMainNavigation();
     applySeniorLinks(cfg.seniorBaseUrl || '');
-    improveShellControls();
+    improveShellControls(cfg);
     ensureAuthControls(cfg);
-    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.78'); });
+    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.80'); });
   }, { once: true });
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

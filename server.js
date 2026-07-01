@@ -208,7 +208,7 @@ const TLS_PFX_PASSPHRASE = process.env.TLS_PFX_PASSPHRASE || 'familycare-local';
 const PROTOCOL = HTTPS_ENABLED ? 'https' : 'http';
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 const ADMIN_NAME = String(process.env.ADMIN_NAME || 'Administrator FamilyCare');
-// V1.0.78: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
+// V1.0.80: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
 // Pentru test fără autentificare se poate seta MAIN_AUTH_DISABLED=true, dar implicit login-ul este activ.
 const MAIN_AUTH_DISABLED = ['true','1','yes','da'].includes(String(process.env.MAIN_AUTH_DISABLED || process.env.FAMILYCARE_AUTH_DISABLED || '').trim().toLowerCase());
 const AUTH_REQUIRED = !MAIN_AUTH_DISABLED;
@@ -236,16 +236,21 @@ function sessionCookie(token, req, maxAgeSeconds) {
   const secure = requestIsSecure(req) ? '; Secure' : '';
   return `fc_main_session=${encodeURIComponent(token || '')}; Path=/; HttpOnly; SameSite=Strict${secure}; Max-Age=${Math.max(0, maxAgeSeconds || 0)}`;
 }
-function authorizedMain(req) {
-  if (!AUTH_REQUIRED) return true;
+function getMainSessionState(req) {
+  if (!AUTH_REQUIRED) return { authenticated:true, userName:ADMIN_NAME, headerCode:'', headerName:'', orgType:'' };
   const token = parseCookies(req).fc_main_session || '';
-  const expires = adminSessions.get(token);
+  const state = adminSessions.get(token);
+  const expires = state && typeof state === 'object' ? state.expires : state;
   if (!expires || expires < Date.now()) {
     if (token) adminSessions.delete(token);
-    return false;
+    return null;
   }
-  adminSessions.set(token, Date.now() + SESSION_TTL_MS);
-  return true;
+  const nextState = state && typeof state === 'object' ? { ...state, expires: Date.now() + SESSION_TTL_MS } : { expires: Date.now() + SESSION_TTL_MS, userName: ADMIN_NAME, headerCode:'', headerName:'', orgType:'' };
+  adminSessions.set(token, nextState);
+  return { authenticated:true, userName:nextState.userName || ADMIN_NAME, headerCode:nextState.headerCode || '', headerName:nextState.headerName || '', orgType:nextState.orgType || '' };
+}
+function authorizedMain(req) {
+  return !!getMainSessionState(req);
 }
 function loginKey(req) {
   return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
@@ -309,7 +314,7 @@ async function createMainLoginUser(body) {
   const existing = await findMainLoginUser(phone) || await findMainLoginUser(name);
   if (existing) throw new Error('Există deja un user cu acest telefon sau utilizator.');
 
-  // V1.0.78: fiecare utilizator/aparținător primește propria organizație și grup implicit.
+  // V1.0.80: fiecare utilizator/aparținător primește propria organizație și grup implicit.
   // Senior folosește aceste coduri ca să afișeze doar beneficiarii aparținătorului autentificat.
   const headerCode = makeCode('CH');
   const branchCode = makeCode('CB');
@@ -347,30 +352,37 @@ async function createMainLoginUser(body) {
       values ('main-login-user', ${dollar(payload)}::jsonb, 10)
       returning id
     )
-    select json_build_object('ok',true,'id',(select id from ins_user),'headerCode',(select header_code from h_ins),'branchCode',(select branch_code from b_ins))::text;`;
+    select json_build_object('ok',true,'id',(select id from ins_user),'headerCode',(select header_code from h_ins),'headerName',(select name from h_ins),'branchCode',(select branch_code from b_ins),'branchName',(select name from b_ins))::text;`;
   const out = await runPsql(sql);
   return JSON.parse(String(out || '{}').split('\n').pop() || '{}');
 }
 
-function openSessionFor(res, req, name) {
+function openSessionFor(res, req, name, payload = {}) {
   const token = crypto.randomBytes(32).toString('base64url');
-  adminSessions.set(token, Date.now() + SESSION_TTL_MS);
+  adminSessions.set(token, {
+    expires: Date.now() + SESSION_TTL_MS,
+    userName: String(name || payload.Nume || payload.Utilizator || ADMIN_NAME),
+    headerCode: String(payload.HeaderCode || payload['ID organizație'] || ''),
+    headerName: String(payload['Organizație / cont'] || payload.Organizatie || payload['Organizatie'] || ''),
+    orgType: String(payload['Tip organizație'] || '')
+  });
   res.setHeader('Set-Cookie', sessionCookie(token, req, Math.floor(SESSION_TTL_MS / 1000)));
   return token;
 }
 async function handleMainAuthApi(req, res, url) {
   if (url.pathname === '/api/auth/session' && req.method === 'GET') {
     const hasUsers = (await mainLoginUserCount()) > 0;
-    send(res, 200, JSON.stringify({ ok:true, authenticated:authorizedMain(req), authRequired:AUTH_REQUIRED, hasUsers, name:ADMIN_NAME }), 'application/json; charset=utf-8');
+    const st = getMainSessionState(req);
+    send(res, 200, JSON.stringify({ ok:true, authenticated:!!st, authRequired:AUTH_REQUIRED, hasUsers, name:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'' }), 'application/json; charset=utf-8');
     return true;
   }
   if (url.pathname === '/api/auth/register' && req.method === 'POST') {
     try {
-      // V1.0.78: în perioada de testare, utilizatorul nou se poate crea direct din login,
+      // V1.0.80: în perioada de testare, utilizatorul nou se poate crea direct din login,
       // inclusiv după ce există deja primul cont.
       const body = await readJson(req);
       const result = await createMainLoginUser(body);
-      openSessionFor(res, req, body.name || body.Nume || body.user || ADMIN_NAME);
+      openSessionFor(res, req, body.name || body.Nume || body.user || ADMIN_NAME, { HeaderCode: result.headerCode || '', 'Organizație / cont': result.headerName || result.organizatie || '', 'Tip organizație': body.orgType || body['Tip organizație'] || '' });
       send(res, 200, JSON.stringify({ ok:true, ...result }), 'application/json; charset=utf-8');
       return true;
     } catch (e) { send(res, 400, JSON.stringify({ ok:false, error:e.message || 'Contul nu a putut fi creat.' }), 'application/json; charset=utf-8'); return true; }
@@ -383,7 +395,7 @@ async function handleMainAuthApi(req, res, url) {
       const users = await mainLoginUserCount();
       if (!users && ADMIN_PASSWORD && sameSecret(body.password || '', ADMIN_PASSWORD)) {
         loginAttempts.delete(loginKey(req));
-        openSessionFor(res, req, ADMIN_NAME);
+        openSessionFor(res, req, ADMIN_NAME, {});
         send(res, 200, JSON.stringify({ ok:true, name:ADMIN_NAME }), 'application/json; charset=utf-8');
         return true;
       }
@@ -396,8 +408,8 @@ async function handleMainAuthApi(req, res, url) {
         return true;
       }
       loginAttempts.delete(loginKey(req));
-      openSessionFor(res, req, payload.Nume || ADMIN_NAME);
-      send(res, 200, JSON.stringify({ ok:true, name:payload.Nume || ADMIN_NAME }), 'application/json; charset=utf-8');
+      openSessionFor(res, req, payload.Nume || ADMIN_NAME, payload);
+      send(res, 200, JSON.stringify({ ok:true, name:payload.Nume || ADMIN_NAME, headerCode:payload.HeaderCode||'', headerName:payload['Organizație / cont']||payload.Organizatie||'' }), 'application/json; charset=utf-8');
       return true;
     } catch (e) { send(res, 400, JSON.stringify({ ok:false, error:e.message || 'Cerere invalidă.' }), 'application/json; charset=utf-8'); return true; }
   }
@@ -548,11 +560,28 @@ function directConfigSelectSql(section) {
   ) t;`;
   if (section === 'care-persons') return `select coalesce(json_agg(row_to_json(t))::text,'[]') from (
     select e.id, 'care-persons' as section_key,
-      jsonb_build_object('Organizație / cont',coalesce(h.name,''),'Denumire',e.display_name,'Tip entitate',e.entity_type,'Ramificație',coalesce(b.name,''),'Adresă / detalii',coalesce(e.address_notes,e.access_details,concat_ws(', ',e.country,e.city,e.street,e.street_no),''),'Responsabil',coalesce(e.notes,'')) as payload,
+      jsonb_build_object(
+        'Organizație / cont',coalesce(h.name,''),
+        'Denumire',e.display_name,
+        'Tip entitate',e.entity_type,
+        'Ramificație',coalesce(b.name,''),
+        'Adresă / detalii',coalesce(e.address_notes,e.access_details,concat_ws(', ',e.country,e.city,e.street,e.street_no),''),
+        'Responsabil',coalesce(e.notes,''),
+        'Cod beneficiar',coalesce(e.entity_code,''),
+        'Utilizator senior',coalesce(login.payload->>'Utilizator',''),
+        'Telefon senior',coalesce(login.payload->>'Telefon',''),
+        'Aparținător',coalesce(login.payload->>'Organizație / cont',h.name,'')
+      ) as payload,
       e.id as sort_order
     from ${q}.managed_entity e
     left join ${q}.care_branch b on b.id=e.care_branch_id
     left join ${q}.care_header h on h.id=e.care_header_id
+    left join lateral (
+      select payload from ${q}.config_record c
+      where c.section_key='main-login-user'
+        and coalesce(c.payload->>'EntityCode',c.payload->>'Cod beneficiar','')=e.entity_code
+      order by c.id desc limit 1
+    ) login on true
     where coalesce(e.active,true)=true
     order by coalesce(h.name,''),coalesce(b.sort_order,9999),e.display_name,e.id
   ) t;`;
@@ -576,6 +605,84 @@ function directConfigSelectSql(section) {
   ) t;`;
   return null;
 }
+
+function beneficiaryLoginUserCtes(entityCteName, b, options = {}) {
+  const user = String(b['Utilizator senior'] || b['Utilizator'] || '').trim();
+  const phone = normalizePhone(b['Telefon senior'] || b['Telefon'] || '');
+  const password = String(b['Parolă senior'] || b['Parola senior'] || b['Parolă'] || b['Parola'] || '');
+  const allowWithoutPassword = options.allowWithoutPassword === true;
+  const hasAny = !!(user || phone || password);
+  if (!hasAny) return '';
+  if (!user || !phone || (!password && !allowWithoutPassword)) throw new Error('Pentru login beneficiar completează Utilizator senior, Parolă senior și Telefon senior.');
+  if (password && password.length < 6) throw new Error('Parola senior trebuie să aibă minimum 6 caractere.');
+  const q = dqIdent(PGSCHEMA);
+  const hasPassword = !!password;
+  const salt = hasPassword ? crypto.randomBytes(16).toString('hex') : '';
+  const iterations = 180000;
+  const hash = hasPassword ? passwordHash(password, salt, iterations) : '';
+  const passwordPairs = hasPassword ? `,
+        'Salt', ${dollar(salt)},
+        'Iterations', ${iterations},
+        'Hash', ${dollar(hash)}` : '';
+  return `, scope_for_login as (
+      select e.id, e.entity_code, e.display_name, h.header_code, h.name as header_name, h.context_type, b.branch_code, b.name as branch_name
+      from ${entityCteName} e
+      left join ${q}.care_header h on h.id=e.care_header_id
+      left join ${q}.care_branch b on b.id=e.care_branch_id
+      limit 1
+    ), upd_login_user as (
+      update ${q}.config_record u
+      set payload = u.payload || jsonb_build_object(
+        'Nume', ${dollar(user)},
+        'Utilizator', ${dollar(user)},
+        'Telefon', ${dollar(phone)},
+        'Tip organizație', coalesce((select context_type from scope_for_login),'familie_proprie'),
+        'HeaderCode', coalesce((select header_code from scope_for_login),''),
+        'ID organizație', coalesce((select header_code from scope_for_login),''),
+        'Organizație / cont', coalesce((select header_name from scope_for_login),''),
+        'Organizatie', coalesce((select header_name from scope_for_login),''),
+        'BranchCode', coalesce((select branch_code from scope_for_login),''),
+        'Grup / locație', coalesce((select branch_name from scope_for_login),''),
+        'EntityCode', coalesce((select entity_code from scope_for_login),''),
+        'Cod beneficiar', coalesce((select entity_code from scope_for_login),''),
+        'Beneficiar', coalesce((select display_name from scope_for_login),''),
+        'Rol', 'beneficiar'${passwordPairs},
+        'Activ', true,
+        'ActualizatLa', to_char(now(),'YYYY-MM-DD"T"HH24:MI:SS')
+      )
+      where u.section_key='main-login-user'
+        and coalesce((u.payload->>'Activ')::boolean,true)=true
+        and (
+          coalesce(u.payload->>'EntityCode','')=coalesce((select entity_code from scope_for_login),'')
+          or coalesce(u.payload->>'Telefon','')=${dollar(phone)}
+          or lower(coalesce(u.payload->>'Utilizator',''))=lower(${dollar(user)})
+        )
+      returning id
+    ), ins_login_user as (
+      insert into ${q}.config_record(section_key,payload,sort_order)
+      select 'main-login-user', jsonb_build_object(
+        'Nume', ${dollar(user)},
+        'Utilizator', ${dollar(user)},
+        'Telefon', ${dollar(phone)},
+        'Tip organizație', coalesce((select context_type from scope_for_login),'familie_proprie'),
+        'HeaderCode', coalesce((select header_code from scope_for_login),''),
+        'ID organizație', coalesce((select header_code from scope_for_login),''),
+        'Organizație / cont', coalesce((select header_name from scope_for_login),''),
+        'Organizatie', coalesce((select header_name from scope_for_login),''),
+        'BranchCode', coalesce((select branch_code from scope_for_login),''),
+        'Grup / locație', coalesce((select branch_name from scope_for_login),''),
+        'EntityCode', coalesce((select entity_code from scope_for_login),''),
+        'Cod beneficiar', coalesce((select entity_code from scope_for_login),''),
+        'Beneficiar', coalesce((select display_name from scope_for_login),''),
+        'Rol', 'beneficiar'${passwordPairs},
+        'Activ', true,
+        'CreatLa', to_char(now(),'YYYY-MM-DD"T"HH24:MI:SS')
+      )::jsonb, 10
+      where not exists(select 1 from upd_login_user) and ${hasPassword ? 'true' : 'false'}
+      returning id
+    )`;
+}
+
 function directConfigInsertSql(section, b) {
   const q = dqIdent(PGSCHEMA);
   if (section === 'care-header') return `insert into ${q}.care_header(header_code,name,context_type,coordinator_name,description,active)
@@ -593,16 +700,20 @@ function directConfigInsertSql(section, b) {
   if (section === 'care-persons') {
     const headerName = String(b['Organizație / cont'] || '').trim();
     const branch = String(b['Ramificație']||'').trim();
+    const entityCode = makeCode('ME');
+    const loginCtes = beneficiaryLoginUserCtes('ins_entity', b);
     return `with ${firstHeaderCte()}, hsel as (
       select id from ${q}.care_header where coalesce(active,true)=true and (${dollar(headerName)}='' or name=${dollar(headerName)} or header_code=${dollar(headerName)}) order by id limit 1
     ), hh as (
       select coalesce((select id from hsel),(select id from h)) as id
     ), br as (
       select id from ${q}.care_branch where coalesce(active,true)=true and care_header_id=(select id from hh) and (branch_code=${dollar(branch)} or name=${dollar(branch)}) order by id limit 1
-    )
-    insert into ${q}.managed_entity(care_header_id,care_branch_id,entity_code,entity_type,display_name,allows_senior_screen,address_notes,notes,active)
-    select (select id from hh), (select id from br), ${dollar(makeCode('ME'))}, ${dollar(b['Tip entitate']||'senior')}, ${dollar(b['Denumire']||'Senior')}, ${seniorScreenSql(b['Tip entitate']||'senior')}, ${dollar(b['Adresă / detalii']||'')}, ${dollar(b['Responsabil']||'')}, true
-    returning json_build_object('ok',true,'id',id)::text;`;
+    ), ins_entity as (
+      insert into ${q}.managed_entity(care_header_id,care_branch_id,entity_code,entity_type,display_name,allows_senior_screen,address_notes,notes,active)
+      select (select id from hh), (select id from br), ${dollar(entityCode)}, ${dollar(b['Tip entitate']||'senior')}, ${dollar(b['Denumire']||'Senior')}, ${seniorScreenSql(b['Tip entitate']||'senior')}, ${dollar(b['Adresă / detalii']||'')}, ${dollar(b['Responsabil']||'')}, true
+      returning id, entity_code, display_name, care_header_id, care_branch_id
+    )${loginCtes}
+    select json_build_object('ok',true,'id',(select id from ins_entity),'entityCode',(select entity_code from ins_entity))::text;`;
   }
   if (section === 'users') return `insert into ${q}.app_user(user_code,display_name,email,role_key,address_notes,active)
     values (${dollar(makeCode('USR'))}, ${dollar(b['Nume']||'Utilizator')}, ${dollar(b['Email']||'')}, ${dollar(b['Rol']||'family_member')}, ${dollar(b['Domiciliu complet']||'')}, true)
@@ -627,11 +738,15 @@ function directConfigUpdateSql(section, id, b) {
   if (section === 'care-persons') {
     const headerName = String(b['Organizație / cont'] || '').trim();
     const branch = String(b['Ramificație']||'').trim();
+    const loginCtes = beneficiaryLoginUserCtes('updated_entity', b, { allowWithoutPassword:true });
     return `with hsel as (select id from ${q}.care_header where coalesce(active,true)=true and (${dollar(headerName)}='' or name=${dollar(headerName)} or header_code=${dollar(headerName)}) order by id limit 1),
       hh as (select coalesce((select id from hsel),(select care_header_id from ${q}.managed_entity where id=${n})) as id),
-      br as (select id from ${q}.care_branch where coalesce(active,true)=true and care_header_id=(select id from hh) and (branch_code=${dollar(branch)} or name=${dollar(branch)}) order by id limit 1)
-      update ${q}.managed_entity set care_header_id=(select id from hh), display_name=${dollar(b['Denumire']||'Senior')}, entity_type=${dollar(b['Tip entitate']||'senior')}, care_branch_id=(select id from br), allows_senior_screen=${seniorScreenSql(b['Tip entitate']||'senior')}, address_notes=${dollar(b['Adresă / detalii']||'')}, notes=${dollar(b['Responsabil']||'')}, updated_at=now()
-      where id=${n} returning json_build_object('ok',true,'id',id)::text;`;
+      br as (select id from ${q}.care_branch where coalesce(active,true)=true and care_header_id=(select id from hh) and (branch_code=${dollar(branch)} or name=${dollar(branch)}) order by id limit 1),
+      updated_entity as (
+        update ${q}.managed_entity set care_header_id=(select id from hh), display_name=${dollar(b['Denumire']||'Senior')}, entity_type=${dollar(b['Tip entitate']||'senior')}, care_branch_id=(select id from br), allows_senior_screen=${seniorScreenSql(b['Tip entitate']||'senior')}, address_notes=${dollar(b['Adresă / detalii']||'')}, notes=${dollar(b['Responsabil']||'')}, updated_at=now()
+        where id=${n} returning id, entity_code, display_name, care_header_id, care_branch_id
+      )${loginCtes}
+      select json_build_object('ok',true,'id',(select id from updated_entity),'entityCode',(select entity_code from updated_entity))::text;`;
   }
   if (section === 'users') return `update ${q}.app_user set display_name=${dollar(b['Nume']||'Utilizator')}, email=${dollar(b['Email']||'')}, role_key=${dollar(b['Rol']||'family_member')}, address_notes=${dollar(b['Domiciliu complet']||'')}, updated_at=now() where id=${n} returning json_build_object('ok',true,'id',id)::text;`;
   if (section === 'doctors') return `update ${q}.doctor set full_name=${dollar(b['Nume medic']||'Medic')}, specialty=${dollar(b['Specialitate']||'')}, phone=${dollar(b['Telefon']||'')}, clinic_name=${dollar(b['Domiciliu/cabinet']||'')}, updated_at=now() where id=${n} returning json_build_object('ok',true,'id',id)::text;`;
@@ -1354,7 +1469,8 @@ const requestHandler = async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (await handleMainAuthApi(req, res, url)) return;
   if (url.pathname === '/api/runtime-config') {
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.78', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
+    const st = getMainSessionState(req);
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.80', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'' }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1426,7 +1542,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.78 is running');
+  console.log('FamilyCare Main V1.0.80 is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
   console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);

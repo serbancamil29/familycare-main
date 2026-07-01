@@ -754,5 +754,12 @@ img, svg, video { max-width:100%; }
   .dashboard-senior-cards { grid-template-columns:1fr !important; }
 }
 
-/* V1.0.78 - font mai clar și greutăți mai echilibrate */
+/* V1.0.80 - font mai clar și greutăți mai echilibrate */
 body,button,input,select,textarea{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-weight:520;letter-spacing:-.01em}.page-title,.section-title,.brand-title,h1,h2,h3{font-weight:760}.nav a,.btn,.pill,.kpi b,.big-info{font-weight:720}.muted,small,.page-lead{font-weight:500}
+
+
+/* V1.0.80 - contextul din dreapta sus afișează doar utilizatorul și organizația, fără liste duplicate. */
+.auth-context-card{min-width:min(360px,100%);padding:14px 16px;}
+.auth-context-card .context-auth-org{margin-top:8px;border-top:1px solid var(--border,#d7e0ee);padding-top:8px;display:flex;gap:8px;align-items:center;justify-content:space-between;}
+.auth-context-card .context-auth-org span{color:var(--muted,#64748b);font-size:12px;}
+.auth-context-card .context-auth-org strong{font-size:13px;text-align:right;}
