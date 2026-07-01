@@ -13,10 +13,10 @@ html.dark-theme .compliance-alert{background:#3c2b0b;color:#fde68a;border-color:
 @media(max-width:700px){.compliance-hero{padding:18px;border-radius:18px}.compliance-metrics{grid-template-columns:1fr 1fr;gap:8px}.compliance-metric{padding:12px}.compliance-metric strong{font-size:24px}.compliance-toolbar{align-items:flex-start;flex-direction:column}.toolbar-actions{width:100%}.toolbar-actions .btn{flex:1}.compliance-grid{grid-template-columns:1fr}.compliance-form{grid-template-columns:1fr}.compliance-form .field.wide{grid-column:auto}.compliance-modal{padding:7px}.compliance-modal-card{padding:16px;border-radius:18px;max-height:98dvh}.main-login-card{padding:24px}.main-login-card h1{font-size:32px}}
 @media print{.sidebar,.topbar,.compliance-tabs,.toolbar-actions,.pwa-install-button{display:none!important}.app-shell,.main{display:block!important}.main{padding:0!important}.compliance-hero{box-shadow:none;background:#fff;color:#111;border:1px solid #bbb}.compliance-table{font-size:10px}}
 
-/* V1.0.84 - login cu opțiune Utilizator nou vizibilă permanent */
+/* V1.0.85 - login cu opțiune Utilizator nou vizibilă permanent */
 .login-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:20px 0 10px;padding:6px;border:1px solid #dbe5f2;border-radius:16px;background:#f8fbff}.login-mode-switch button{border:0;border-radius:12px;background:transparent;color:#315078;font-weight:800;min-height:42px;cursor:pointer}.login-mode-switch button.active{background:#2563eb;color:#fff;box-shadow:0 8px 22px rgba(37,99,235,.22)}.main-login-form input::placeholder{color:#94a3b8}@media(max-width:700px){.login-mode-switch{grid-template-columns:1fr}.login-mode-switch button{min-height:46px}}
 
-/* V1.0.84 - afișează doar formularul modului selectat pe login */
+/* V1.0.85 - afișează doar formularul modului selectat pe login */
 .main-login-form[hidden]{display:none!important}
 .main-login-card[data-mode="login"] #registerForm{display:none!important}
 .main-login-card[data-mode="register"] #mainLoginForm{display:none!important}

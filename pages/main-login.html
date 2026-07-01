@@ -13,7 +13,7 @@
 <body class="main-login-body">
  <main class="main-login-screen">
   <section class="main-login-card" data-mode="login" aria-labelledby="loginTitle">
-   <div class="main-login-brand"><img src="../assets/logo.svg" alt=""><div><b>FamilyCare Main</b><span>Acces aparținător / furnizor · v1.0.84</span></div></div>
+   <div class="main-login-brand"><img src="../assets/logo.svg" alt=""><div><b>FamilyCare Main</b><span>Acces aparținător / furnizor · v1.0.85</span></div></div>
    <div class="security-mark" aria-hidden="true">✓</div>
    <h1 id="loginTitle">Autentificare</h1>
    <p id="loginLead">Intră în cont cu telefonul sau utilizatorul configurat.</p>
@@ -21,15 +21,15 @@
     <button type="button" class="active" id="loginTab" role="tab" aria-selected="true">Intră în cont</button>
     <button type="button" id="registerTab" role="tab" aria-selected="false">Utilizator nou</button>
    </div>
-   <form id="mainLoginForm" class="main-login-form">
+   <form id="mainLoginForm" class="main-login-form" autocomplete="off">
     <label for="loginIdentifier">Telefon sau utilizator</label>
-    <input id="loginIdentifier" type="text" autocomplete="username" inputmode="text" required>
+    <input id="loginIdentifier" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="text" required>
     <label for="loginPassword">Parolă</label>
-    <input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required>
+    <input id="loginPassword" type="password" autocomplete="new-password" minlength="6" required>
     <p id="loginError" class="login-error" role="alert" hidden></p>
     <button type="submit" class="btn primary">Intră în FamilyCare</button>
    </form>
-   <form id="registerForm" class="main-login-form" hidden>
+   <form id="registerForm" class="main-login-form" hidden autocomplete="off">
     <label for="regName">Utilizator</label>
     <input id="regName" type="text" autocomplete="name" placeholder="Ex: Camil Popescu" required>
     <label for="regPassword">Parolă</label>
@@ -63,6 +63,12 @@
   const params=new URLSearchParams(location.search);
   const requested=params.get('next')||'/pages/dashboard.html';
   const next=requested.startsWith('/pages/')&&!requested.includes('main-login')?requested:'/pages/dashboard.html';
+  function clearCredentialFields(){
+    ['loginIdentifier','loginPassword','regName','regPassword','regPhone'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  }
+  clearCredentialFields();
+  window.addEventListener('pageshow', clearCredentialFields);
+  setTimeout(clearCredentialFields, 120);
   function setTab(tab){
     const isRegister=tab==='register';
     const card=document.querySelector('.main-login-card');
@@ -82,7 +88,6 @@
   registerTab.addEventListener('click',()=>setTab('register'));
   fetch('/api/auth/session',{cache:'no-store'}).then(r=>r.json()).then(s=>{
     if(s.authenticated) location.replace(next);
-    if(s.registrationAllowed===false){registerTab.hidden=true;document.getElementById('loginNote').textContent='Conturile de aparținător se creează numai de administrator. Conturile beneficiarilor intră exclusiv în FamilyCare Senior.';}
   }).catch(()=>{});
   loginForm.addEventListener('submit',async event=>{
    event.preventDefault(); loginError.hidden=true;

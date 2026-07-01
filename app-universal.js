@@ -71,7 +71,7 @@
     if (!cfg.authRequired || !document.querySelector('.sidebar') || document.querySelector('.sidebar-auth')) return;
     const box = document.createElement('div');
     box.className = 'sidebar-auth';
-    box.innerHTML = `<span class="sidebar-auth-name">${String(cfg.authenticated ? (cfg.userName || cfg.name || 'Sesiune securizată') : 'Neautentificat')}</span><button type="button" class="sidebar-logout">Ieșire sigură</button>`;
+    box.innerHTML = `<span class="sidebar-auth-name">${String(cfg.authenticated ? (cfg.userName || cfg.name || 'Sesiune securizată') : 'Neautentificat')}</span><button type="button" class="sidebar-logout">Ieșire</button>`;
     box.querySelector('button').addEventListener('click', async () => {
       try { await fetch('/api/auth/logout', { method:'DELETE' }); } catch (_) {}
       location.href = '/pages/main-login.html';
@@ -84,7 +84,7 @@
     applySeniorLinks(cfg.seniorBaseUrl || '');
     improveShellControls(cfg);
     ensureAuthControls(cfg);
-    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.84'); });
+    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.85'); });
   }, { once: true });
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
@@ -143,26 +143,19 @@
     observer.observe(document.body, { childList:true, subtree:true });
   }, {once:true});
 
-  // V1.0.66 - mobile menu polish for Main app
+  // V1.0.85 - meniu stabil: pe desktop rămâne extins, iar click pe meniu nu îl restrânge automat.
   document.addEventListener('DOMContentLoaded', () => {
     const shell = document.querySelector('.app-shell');
     if (!shell) return;
     const mq = window.matchMedia('(max-width: 1000px)');
-    function ensureMobileCollapsed() {
-      if (mq.matches && !localStorage.getItem('familycare-menu-collapsed')) {
-        shell.classList.add('menu-collapsed');
+    function applyStableMenu() {
+      if (!mq.matches) {
+        shell.classList.remove('menu-collapsed');
+        try { localStorage.setItem('familycare-menu-collapsed','0'); } catch (_) {}
       }
     }
-    ensureMobileCollapsed();
-    mq.addEventListener?.('change', ensureMobileCollapsed);
-    document.querySelectorAll('.nav a').forEach(link => {
-      link.addEventListener('click', () => {
-        if (mq.matches) {
-          shell.classList.add('menu-collapsed');
-          localStorage.setItem('familycare-menu-collapsed','1');
-        }
-      });
-    });
+    applyStableMenu();
+    mq.addEventListener?.('change', applyStableMenu);
   }, {once:true});
 
 })();

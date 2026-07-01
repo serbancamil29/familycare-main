@@ -23,7 +23,7 @@
  <aside class="sidebar">
   <a class="brand" href="dashboard.html">
    <img src="../assets/logo.svg" alt="FamilyCare logo">
-   <div><div class="brand-title">FamilyCare</div><div class="brand-subtitle">by Cademix</div><div class="brand-version">v1.0.84</div></div>
+   <div><div class="brand-title">FamilyCare</div><div class="brand-subtitle">by Cademix</div><div class="brand-version">v1.0.85</div></div>
   </a>
   <button class="menu-toggle" type="button" id="menuToggle" title="Restrânge meniul">☰</button>
   <nav class="nav"><a class="active" href="dashboard.html"><span class="ico">🏠</span><span>Dashboard</span></a>
@@ -211,7 +211,7 @@ initDates(); loadEntities(); loadTreatmentNames(); loadTreatmentPlan();
  const shell=document.querySelector('.app-shell');
  const btn=document.getElementById('menuToggle');
  function apply(v){ if(shell) shell.classList.toggle('menu-collapsed', v==='1'); if(btn) btn.textContent=v==='1'?'☰':'☰'; }
- apply(localStorage.getItem(key)||(window.innerWidth<=1000?'1':'0'));
+ apply(window.innerWidth<=1000?(localStorage.getItem(key)||'1'):'0');
  if(btn) btn.addEventListener('click',()=>{ const next=shell&&shell.classList.contains('menu-collapsed')?'0':'1'; localStorage.setItem(key,next); apply(next); });
 })();
 </script>

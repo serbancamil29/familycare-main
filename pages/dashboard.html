@@ -14,7 +14,7 @@
 <body>
 <div class="app-shell">
  <aside class="sidebar">
-  <a class="brand" href="dashboard.html"><img src="../assets/logo.svg" alt="FamilyCare"><div><div class="brand-title">FamilyCare</div><div class="brand-subtitle">by Cademix</div><div class="brand-version">v1.0.84</div></div></a>
+  <a class="brand" href="dashboard.html"><img src="../assets/logo.svg" alt="FamilyCare"><div><div class="brand-title">FamilyCare</div><div class="brand-subtitle">by Cademix</div><div class="brand-version">v1.0.85</div></div></a>
   <button class="menu-toggle" type="button" id="menuToggle" title="Restrânge meniul">☰</button>
   <nav class="nav"><a class="active" href="dashboard.html"><span class="ico">🏠</span><span>Dashboard</span></a>
 <a href="journal.html"><span class="ico">📝</span><span>Jurnal</span></a>
@@ -141,7 +141,7 @@
 
 <script>
 (function(){const KEY='familycare-theme';const apply=t=>{document.documentElement.classList.toggle('dark-theme',t==='dark');document.body.classList.toggle('dark-theme',t==='dark');localStorage.setItem(KEY,t);document.querySelectorAll('[data-theme]').forEach(b=>b.classList.toggle('active',b.dataset.theme===t));};apply(localStorage.getItem(KEY)==='dark'?'dark':'light');document.querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>apply(b.dataset.theme));})();
-(function(){const key='familycare-menu-collapsed';const shell=document.querySelector('.app-shell');const btn=document.getElementById('menuToggle');function apply(v){if(shell)shell.classList.toggle('menu-collapsed',v==='1')}apply(localStorage.getItem(key)||(window.innerWidth<=1000?'1':'0'));if(btn)btn.onclick=()=>{const next=shell.classList.contains('menu-collapsed')?'0':'1';localStorage.setItem(key,next);apply(next)}})();
+(function(){const key='familycare-menu-collapsed';const shell=document.querySelector('.app-shell');const btn=document.getElementById('menuToggle');function apply(v){if(shell)shell.classList.toggle('menu-collapsed',v==='1')}apply(window.innerWidth<=1000?(localStorage.getItem(key)||'1'):'0');if(btn)btn.onclick=()=>{const next=shell.classList.contains('menu-collapsed')?'0':'1';localStorage.setItem(key,next);apply(next)}})();
 </script>
 <script>
 const WEEKDAYS={1:'Luni',2:'Marți',3:'Miercuri',4:'Joi',5:'Vineri',6:'Sâmbătă',7:'Duminică'};
