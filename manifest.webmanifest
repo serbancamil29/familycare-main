@@ -1,21 +1,25 @@
-/* Page-specific stylesheet. Shared visual system is in common.css. */
-
-.senior-multiselect {
-  min-height: 124px;
-  padding: 8px;
-  line-height: 1.45;
-}
-.senior-multiselect option {
-  padding: 10px 12px;
-  border-radius: 10px;
-  margin: 2px 0;
-  font-weight: 850;
-}
-.senior-multiselect option:checked {
-  background: var(--btn-accent-bg);
-  color: var(--btn-accent-text);
-}
-html.dark-theme .senior-multiselect option:checked {
-  background: #3B82F6;
-  color: #FFFFFF;
+{
+  "id": "/pages/dashboard.html",
+  "name": "FamilyCare Main",
+  "short_name": "FamilyCare",
+  "description": "Îngrijire familială, tratamente, management de caz și conformitate pentru servicii sociale.",
+  "lang": "ro",
+  "start_url": "/pages/dashboard.html?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#F3F7FC",
+  "theme_color": "#2563EB",
+  "categories": ["medical", "lifestyle", "productivity"],
+  "icons": [
+    {"src":"/assets/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"/assets/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ],
+  "shortcuts": [
+    {"name":"Dashboard","url":"/pages/dashboard.html","icons":[{"src":"/assets/icon-192.png","sizes":"192x192"}]},
+    {"name":"Tratamente","url":"/pages/treatment.html","icons":[{"src":"/assets/icon-192.png","sizes":"192x192"}]},
+    {"name":"Rapoarte","url":"/pages/reports.html","icons":[{"src":"/assets/icon-192.png","sizes":"192x192"}]},
+    {"name":"Conformitate","url":"/pages/compliance.html","icons":[{"src":"/assets/icon-192.png","sizes":"192x192"}]}
+  ]
 }

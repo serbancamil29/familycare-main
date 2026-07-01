@@ -208,7 +208,7 @@ const TLS_PFX_PASSPHRASE = process.env.TLS_PFX_PASSPHRASE || 'familycare-local';
 const PROTOCOL = HTTPS_ENABLED ? 'https' : 'http';
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 const ADMIN_NAME = String(process.env.ADMIN_NAME || 'Administrator FamilyCare');
-// V1.0.75: login Main configurabil din interfață. Primul user se creează din pagina de login.
+// V1.0.76: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
 // Pentru test fără autentificare se poate seta MAIN_AUTH_DISABLED=true, dar implicit login-ul este activ.
 const MAIN_AUTH_DISABLED = ['true','1','yes','da'].includes(String(process.env.MAIN_AUTH_DISABLED || process.env.FAMILYCARE_AUTH_DISABLED || '').trim().toLowerCase());
 const AUTH_REQUIRED = !MAIN_AUTH_DISABLED;
@@ -279,11 +279,21 @@ async function mainLoginUserCount() {
     return Number(String(out || '0').trim() || 0);
   } catch (_) { return 0; }
 }
-async function findMainLoginUser(phone) {
-  const normalized = normalizePhone(phone);
-  if (!normalized) return null;
+async function findMainLoginUser(identifier) {
+  const raw = String(identifier || '').trim();
+  const normalized = normalizePhone(raw);
+  if (!raw && !normalized) return null;
   try {
-    const out = await runPsql(`select coalesce((select json_build_object('id',id,'payload',payload)::text from ${dqIdent(PGSCHEMA)}.config_record where section_key='main-login-user' and coalesce(payload->>'Telefon','')=${dollar(normalized)} order by id desc limit 1),'{}');`);
+    const out = await runPsql(`select coalesce((select json_build_object('id',id,'payload',payload)::text
+      from ${dqIdent(PGSCHEMA)}.config_record
+      where section_key='main-login-user'
+        and coalesce((payload->>'Activ')::boolean,true)=true
+        and (
+          coalesce(payload->>'Telefon','')=${dollar(normalized)}
+          or lower(coalesce(payload->>'Nume',''))=lower(${dollar(raw)})
+          or lower(coalesce(payload->>'Utilizator',''))=lower(${dollar(raw)})
+        )
+      order by id desc limit 1),'{}');`);
     const parsed = JSON.parse(out || '{}');
     return parsed && parsed.id ? parsed : null;
   } catch (_) { return null; }
@@ -302,6 +312,7 @@ async function createMainLoginUser(body) {
   const iterations = 180000;
   const payload = JSON.stringify({
     Nume:name,
+    Utilizator:name,
     Telefon:phone,
     'Tip organizație':orgType,
     Salt:salt,
@@ -341,14 +352,11 @@ async function handleMainAuthApi(req, res, url) {
   }
   if (url.pathname === '/api/auth/register' && req.method === 'POST') {
     try {
-      const hasUsers = (await mainLoginUserCount()) > 0;
-      if (AUTH_REQUIRED && hasUsers && !authorizedMain(req)) {
-        send(res, 403, JSON.stringify({ ok:false, error:'Primul user există deja. Intră în aplicație pentru a crea alți utilizatori.' }), 'application/json; charset=utf-8');
-        return true;
-      }
+      // V1.0.76: în perioada de testare, utilizatorul nou se poate crea direct din login,
+      // inclusiv după ce există deja primul cont.
       const body = await readJson(req);
       const result = await createMainLoginUser(body);
-      openSessionFor(res, req, body.name || body.Nume || ADMIN_NAME);
+      openSessionFor(res, req, body.name || body.Nume || body.user || ADMIN_NAME);
       send(res, 200, JSON.stringify({ ok:true, ...result }), 'application/json; charset=utf-8');
       return true;
     } catch (e) { send(res, 400, JSON.stringify({ ok:false, error:e.message || 'Contul nu a putut fi creat.' }), 'application/json; charset=utf-8'); return true; }
@@ -365,12 +373,12 @@ async function handleMainAuthApi(req, res, url) {
         send(res, 200, JSON.stringify({ ok:true, name:ADMIN_NAME }), 'application/json; charset=utf-8');
         return true;
       }
-      const found = await findMainLoginUser(body.phone || body.Telefon || '');
+      const found = await findMainLoginUser(body.identifier || body.user || body.phone || body.Telefon || '');
       const payload = found && found.payload ? found.payload : null;
       const hash = payload && passwordHash(body.password || '', payload.Salt || '', Number(payload.Iterations || 180000));
       if (!payload || !payload.Hash || hash !== payload.Hash) {
         registerLoginFailure(req);
-        send(res, 401, JSON.stringify({ ok:false, error:'Telefon sau parolă incorectă.' }), 'application/json; charset=utf-8');
+        send(res, 401, JSON.stringify({ ok:false, error:'Utilizator/telefon sau parolă incorectă.' }), 'application/json; charset=utf-8');
         return true;
       }
       loginAttempts.delete(loginKey(req));
@@ -1332,7 +1340,7 @@ const requestHandler = async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (await handleMainAuthApi(req, res, url)) return;
   if (url.pathname === '/api/runtime-config') {
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.75', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.76', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, authenticated:authorizedMain(req) }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1404,7 +1412,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.75 is running');
+  console.log('FamilyCare Main V1.0.76 is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
   console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);
