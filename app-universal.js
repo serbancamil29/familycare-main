@@ -31,12 +31,29 @@
       ['compliance.html', '✓', 'Conformitate', 'compliance'],
       ['#senior', '👤', 'Ecran Senior', 'senior']
     ];
-    nav.innerHTML = items.map(([href, icon, label, key]) => {
+    const markup = items.map(([href, icon, label, key]) => {
       const isSenior = key === 'senior';
       const active = !isSenior && current === href;
       const attrs = isSenior ? ' data-senior-link target="_blank" rel="noopener"' : '';
       return `<a class="${active ? 'active' : ''}" href="${href}"${attrs}><span class="ico">${icon}</span><span>${label}</span></a>`;
     }).join('');
+    // V1.0.86: nu mai reconstruim meniul dacă are deja aceeași ordine; schimbăm doar active/href.
+    // Asta elimină flicker-ul în care unele opțiuni dispar pentru o fracțiune de secundă la navigare.
+    const currentLabels = Array.from(nav.querySelectorAll('a span:last-child')).map(x => x.textContent.trim()).join('|');
+    const expectedLabels = items.map(x => x[2]).join('|');
+    if (currentLabels !== expectedLabels) {
+      nav.innerHTML = markup;
+    } else {
+      nav.querySelectorAll('a').forEach((a, index) => {
+        const [href,, label, key] = items[index] || [];
+        if (!href) return;
+        const isSenior = key === 'senior';
+        a.classList.toggle('active', !isSenior && current === href);
+        a.href = href;
+        if (isSenior) { a.dataset.seniorLink = 'true'; a.target = '_blank'; a.rel = 'noopener'; }
+        const text = a.querySelector('span:last-child'); if (text) text.textContent = label;
+      });
+    }
   }
   function improveShellControls(cfg = {}) {
     const userName = String(cfg.userName || cfg.name || 'Utilizator autentificat');
@@ -84,7 +101,7 @@
     applySeniorLinks(cfg.seniorBaseUrl || '');
     improveShellControls(cfg);
     ensureAuthControls(cfg);
-    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.85'); });
+    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.86'); });
   }, { once: true });
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
@@ -143,7 +160,7 @@
     observer.observe(document.body, { childList:true, subtree:true });
   }, {once:true});
 
-  // V1.0.85 - meniu stabil: pe desktop rămâne extins, iar click pe meniu nu îl restrânge automat.
+  // V1.0.86 - meniu stabil: pe desktop rămâne extins, iar click pe meniu nu îl restrânge automat.
   document.addEventListener('DOMContentLoaded', () => {
     const shell = document.querySelector('.app-shell');
     if (!shell) return;

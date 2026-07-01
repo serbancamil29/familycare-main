@@ -208,7 +208,7 @@ const TLS_PFX_PASSPHRASE = process.env.TLS_PFX_PASSPHRASE || 'familycare-local';
 const PROTOCOL = HTTPS_ENABLED ? 'https' : 'http';
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 const ADMIN_NAME = String(process.env.ADMIN_NAME || 'Administrator FamilyCare');
-// V1.0.85: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
+// V1.0.86: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
 // Pentru test fără autentificare se poate seta MAIN_AUTH_DISABLED=true, dar implicit login-ul este activ.
 const MAIN_AUTH_DISABLED = ['true','1','yes','da'].includes(String(process.env.MAIN_AUTH_DISABLED || process.env.FAMILYCARE_AUTH_DISABLED || '').trim().toLowerCase());
 const AUTH_REQUIRED = !MAIN_AUTH_DISABLED;
@@ -320,7 +320,7 @@ async function createMainLoginUser(body) {
   const existing = await findMainLoginUser(phone) || await findMainLoginUser(name);
   if (existing) throw new Error('Există deja un user cu acest telefon sau utilizator.');
 
-  // V1.0.85: fiecare utilizator/aparținător primește propria organizație și grup implicit.
+  // V1.0.86: fiecare utilizator/aparținător primește propria organizație și grup implicit.
   // Senior folosește aceste coduri ca să afișeze doar beneficiarii aparținătorului autentificat.
   const headerCode = makeCode('CH');
   const branchCode = makeCode('CB');
@@ -427,7 +427,7 @@ async function handleMainAuthApi(req, res, url) {
   if (url.pathname === '/api/auth/register' && req.method === 'POST') {
     if (!ALLOW_PUBLIC_REGISTRATION) { send(res, 403, JSON.stringify({ ok:false, error:'Crearea publică de conturi este dezactivată. Solicită administratorului activarea înregistrării.' }), 'application/json; charset=utf-8'); return true; }
     try {
-      // V1.0.85: în perioada de testare, utilizatorul nou se poate crea direct din login,
+      // V1.0.86: în perioada de testare, utilizatorul nou se poate crea direct din login,
       // inclusiv după ce există deja primul cont.
       const body = await readJson(req);
       const result = await createMainLoginUser(body);
@@ -1659,7 +1659,7 @@ async function handleApi(req, res, url) {
   }
   if (section === 'mail-settings') { send(res, 403, 'Folosește endpointul securizat /api/mail-settings.'); return true; }
   if (await handleSeniorCardColorsConfigApi(req, res, section, id, session)) return true;
-  if (await handleDirectConfigApi(req, res, section, id)) return true;
+  if (await handleDirectConfigApi(req, res, section, id, session)) return true;
   const table = dqIdent(PGSCHEMA) + '.config_record';
   try {
     if (req.method === 'GET' && !id) {
@@ -1704,7 +1704,7 @@ const requestHandler = async (req, res) => {
   if (url.pathname === '/api/runtime-config') {
     let st = getMainSessionState(req);
     st = await enrichMainSessionFromDb(st);
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.85', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.86', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1776,7 +1776,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.85 is running');
+  console.log('FamilyCare Main V1.0.86 is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
   console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);
