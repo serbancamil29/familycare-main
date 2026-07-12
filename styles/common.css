@@ -819,7 +819,7 @@ body,button,input,select,textarea{font-family:ui-sans-serif,-apple-system,BlinkM
 .main-login-card{position:relative}
 
 
-/* FamilyCare v2.0.1 - global theme control and complete dark surfaces */
+/* FamilyCare v3.0.0 - global theme control and complete dark surfaces */
 .global-theme-toggle{
   position:fixed;top:18px;right:22px;z-index:120;width:46px;height:46px;
   display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;
@@ -843,3 +843,53 @@ html.dark-theme td,html.dark-theme th{border-color:#334155;color:#e2e8f0}
 html.dark-theme .topbar,html.dark-theme .page-title,html.dark-theme .section-title{color:#f8fafc}
 @media(max-width:1000px){.global-theme-toggle{top:12px;right:14px;width:42px;height:42px}}
 @media print{.global-theme-toggle{display:none!important}}
+
+
+/* =========================================================
+   FamilyCare 3.0 — unified design system
+   ========================================================= */
+:root{
+ --fc-bg:#f3f6fb;--fc-surface:#ffffff;--fc-surface-2:#f8fafc;--fc-text:#10213d;
+ --fc-muted:#5b6f8f;--fc-line:#d8e2ef;--fc-primary:#2563eb;--fc-primary-hover:#1d4ed8;
+ --fc-focus:#60a5fa;--fc-shadow:0 18px 48px rgba(15,35,70,.12);
+ color-scheme:light;
+}
+html.dark-theme{
+ --fc-bg:#08101f;--fc-surface:#111b2e;--fc-surface-2:#162238;--fc-text:#f8fafc;
+ --fc-muted:#c3cee0;--fc-line:#34445e;--fc-primary:#4f86ff;--fc-primary-hover:#76a2ff;
+ --fc-focus:#93c5fd;--fc-shadow:0 20px 55px rgba(0,0,0,.38);
+ color-scheme:dark;
+}
+html,body{background:var(--fc-bg);color:var(--fc-text)}
+body,.main,.page,.content{transition:background-color .18s ease,color .18s ease}
+.global-theme-toggle{top:18px;right:22px;background:var(--fc-surface)!important;color:var(--fc-text)!important;border-color:var(--fc-line)!important}
+.global-theme-toggle:hover{background:var(--fc-surface-2)!important}
+
+/* Login is independent from compliance page colours. */
+.main-login-body{background:radial-gradient(circle at 12% 8%,#dbeafe 0,transparent 34%),linear-gradient(145deg,#eef4ff,#f8fafc 62%,#e0e7ff)!important;color:var(--fc-text)!important}
+.main-login-card{background:rgba(255,255,255,.97)!important;color:#10213d!important;border-color:#d8e2ef!important;box-shadow:var(--fc-shadow)!important}
+.main-login-card h1,.main-login-card label,.main-login-brand b{color:#10213d!important}
+.main-login-card>p,.main-login-card>small,.main-login-brand span,.login-secret-note{color:#5b6f8f!important}
+.main-login-form input,.main-login-form select{background:#fff!important;color:#10213d!important;border-color:#cbd5e1!important}
+.login-mode-switch{background:#f7faff!important;border-color:#d8e2ef!important}
+.login-mode-switch button:not(.active){color:#315078!important}
+html.dark-theme .main-login-body{background:radial-gradient(circle at 14% 8%,#162b52 0,transparent 34%),linear-gradient(145deg,#07101f,#0c1628 62%,#111b32)!important;color:#f8fafc!important}
+html.dark-theme .main-login-card{background:#111b2e!important;color:#f8fafc!important;border-color:#34445e!important;box-shadow:0 28px 80px rgba(0,0,0,.45)!important}
+html.dark-theme .main-login-card h1,html.dark-theme .main-login-card label,html.dark-theme .main-login-brand b{color:#f8fafc!important}
+html.dark-theme .main-login-card>p,html.dark-theme .main-login-card>small,html.dark-theme .main-login-brand span{color:#c3cee0!important}
+html.dark-theme .main-login-form input,html.dark-theme .main-login-form select{background:#08101f!important;color:#f8fafc!important;border-color:#425473!important}
+html.dark-theme .login-mode-switch{background:#0b1527!important;border-color:#34445e!important}
+html.dark-theme .login-mode-switch button:not(.active){color:#d6e0ee!important}
+html.dark-theme .password-reset-panel{background:#111b2e!important;color:#f8fafc!important}
+html.dark-theme .password-reset-header p{color:#c3cee0!important}
+
+/* Complete page surfaces */
+html.dark-theme .sidebar,html.dark-theme .topbar,html.dark-theme .card,html.dark-theme .section,
+html.dark-theme .context-card,html.dark-theme .report-panel,html.dark-theme .report-kpis article,
+html.dark-theme .company-metrics article,html.dark-theme .compliance-panel,html.dark-theme .table-wrap,
+html.dark-theme .modal,html.dark-theme .modal-card{background:var(--fc-surface)!important;color:var(--fc-text)!important;border-color:var(--fc-line)!important}
+html.dark-theme table,html.dark-theme thead,html.dark-theme tbody,html.dark-theme tr,html.dark-theme td,html.dark-theme th{background:transparent!important;color:var(--fc-text)!important;border-color:var(--fc-line)!important}
+html.dark-theme .muted,html.dark-theme small,html.dark-theme .subtitle,html.dark-theme .page-subtitle{color:var(--fc-muted)!important}
+input,select,textarea,button,a{font-family:inherit}
+:focus-visible{outline:3px solid color-mix(in srgb,var(--fc-focus) 55%,transparent)!important;outline-offset:2px}
+@media(max-width:700px){.global-theme-toggle{top:10px;right:10px}}
