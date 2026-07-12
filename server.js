@@ -208,12 +208,12 @@ const TLS_PFX_PASSPHRASE = process.env.TLS_PFX_PASSPHRASE || 'familycare-local';
 const PROTOCOL = HTTPS_ENABLED ? 'https' : 'http';
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 const ADMIN_NAME = String(process.env.ADMIN_NAME || 'Administrator FamilyCare');
-// V1.0.91: superuser tehnic disponibil indiferent dacă există deja utilizatori în baza de date.
+// V1.0.93: superuser tehnic disponibil indiferent dacă există deja utilizatori în baza de date.
 // Datele implicite pot fi suprascrise prin variabilele SUPERUSER_NAME și SUPERUSER_PASSWORD.
 const SUPERUSER_NAME = String(process.env.SUPERUSER_NAME || 'camil.superadmin');
 const SUPERUSER_PASSWORD = String(process.env.SUPERUSER_PASSWORD || 'FamilyCare#Camil2026!');
 const passwordResetRequests = new Map();
-// V1.0.91: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
+// V1.0.93: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
 // Pentru test fără autentificare se poate seta MAIN_AUTH_DISABLED=true, dar implicit login-ul este activ.
 const MAIN_AUTH_DISABLED = ['true','1','yes','da'].includes(String(process.env.MAIN_AUTH_DISABLED || process.env.FAMILYCARE_AUTH_DISABLED || '').trim().toLowerCase());
 const AUTH_REQUIRED = !MAIN_AUTH_DISABLED;
@@ -297,18 +297,24 @@ async function mainLoginUserCount() {
 }
 async function findMainLoginUser(identifier) {
   const raw = String(identifier || '').trim();
+  if (!raw) return null;
   const normalized = normalizePhone(raw);
-  if (!raw && !normalized) return null;
+  // V1.0.93: un e-mail sau un nume de utilizator nu trebuie comparat cu un telefon gol.
+  // Comparația cu Telefon se activează numai pentru valori care arată efectiv ca un număr de telefon.
+  const isPhoneIdentifier = /^[+\d\s().-]+$/.test(raw) && normalized.replace(/\D/g, '').length >= 6;
+  const phoneCondition = isPhoneIdentifier
+    ? `or coalesce(payload->>'Telefon','')=${dollar(normalized)}`
+    : '';
   try {
     const out = await runPsql(`select coalesce((select json_build_object('id',id,'payload',payload)::text
       from ${dqIdent(PGSCHEMA)}.config_record
       where section_key='main-login-user'
         and coalesce((payload->>'Activ')::boolean,true)=true
         and (
-          coalesce(payload->>'Telefon','')=${dollar(normalized)}
-          or lower(coalesce(payload->>'Nume',''))=lower(${dollar(raw)})
+          lower(coalesce(payload->>'Nume',''))=lower(${dollar(raw)})
           or lower(coalesce(payload->>'Utilizator',''))=lower(${dollar(raw)})
           or lower(coalesce(payload->>'Email',''))=lower(${dollar(raw)})
+          ${phoneCondition}
         )
       order by
         case when lower(coalesce(payload->>'Rol','')) in ('apartinator','admin','administrator','furnizor','family_member') or coalesce(payload->>'EntityCode',payload->>'Cod beneficiar','')='' then 0 else 1 end,
@@ -373,7 +379,7 @@ async function createMainLoginUser(body) {
   const existingByEmail = await findMainLoginUser(email);
   if (existingByEmail) throw new Error('Adresa de e-mail introdusă este deja asociată unui cont. Folosește altă adresă sau opțiunea „Ai uitat parola?”.');
 
-  // V1.0.91: fiecare utilizator/aparținător primește propria organizație și grup implicit.
+  // V1.0.93: fiecare utilizator/aparținător primește propria organizație și grup implicit.
   // Senior folosește aceste coduri ca să afișeze doar beneficiarii aparținătorului autentificat.
   const headerCode = makeCode('CH');
   const branchCode = makeCode('CB');
@@ -481,7 +487,7 @@ async function handleMainAuthApi(req, res, url) {
   if (url.pathname === '/api/auth/register' && req.method === 'POST') {
     if (!ALLOW_PUBLIC_REGISTRATION) { send(res, 403, JSON.stringify({ ok:false, error:'Crearea publică de conturi este dezactivată. Solicită administratorului activarea înregistrării.' }), 'application/json; charset=utf-8'); return true; }
     try {
-      // V1.0.91: în perioada de testare, utilizatorul nou se poate crea direct din login,
+      // V1.0.93: în perioada de testare, utilizatorul nou se poate crea direct din login,
       // inclusiv după ce există deja primul cont.
       const body = await readJson(req);
       const result = await createMainLoginUser(body);
@@ -514,10 +520,13 @@ async function handleMainAuthApi(req, res, url) {
       payload = await restoreApartinatorPayloadIfNeeded(found, body.identifier || body.user || body.phone || body.Telefon || '');
       const role = String(payload && payload.Rol || '').trim().toLowerCase();
       const beneficiaryAccount = role === 'beneficiar' || role === 'senior';
-      const hash = payload && passwordHash(body.password || '', payload.Salt || '', Number(payload.Iterations || 180000));
-      if (!payload || !payload.Hash || hash !== payload.Hash) {
+      const suppliedSecret = String(body.password || body.pin || '').trim();
+      const passwordMatch = !!(payload && payload.Hash) && passwordHash(suppliedSecret, payload.Salt || '', Number(payload.Iterations || 180000)) === payload.Hash;
+      const pinEnabled = String(payload && payload.PinActiv || '').toLowerCase() === 'true';
+      const pinMatch = pinEnabled && /^\d{4}$/.test(suppliedSecret) && !!payload.PinHash && passwordHash(suppliedSecret, payload.PinSalt || '', Number(payload.PinIterations || 120000)) === payload.PinHash;
+      if (!payload || (!passwordMatch && !pinMatch)) {
         registerLoginFailure(req);
-        send(res, 401, JSON.stringify({ ok:false, error:'Utilizator/telefon sau parolă incorectă.' }), 'application/json; charset=utf-8');
+        send(res, 401, JSON.stringify({ ok:false, error:'Utilizator/telefon, parolă sau PIN incorect.' }), 'application/json; charset=utf-8');
         return true;
       }
       if (beneficiaryAccount) {
@@ -529,6 +538,70 @@ async function handleMainAuthApi(req, res, url) {
       send(res, 200, JSON.stringify({ ok:true, name:payload.Nume || ADMIN_NAME, headerCode:payload.HeaderCode||'', headerName:payload['Organizație / cont']||payload.Organizatie||'' }), 'application/json; charset=utf-8');
       return true;
     } catch (e) { send(res, 400, JSON.stringify({ ok:false, error:e.message || 'Cerere invalidă.' }), 'application/json; charset=utf-8'); return true; }
+  }
+
+  if (url.pathname === '/api/admin/access-accounts' && req.method === 'GET') {
+    const session = getMainSessionState(req);
+    if (!session) { send(res, 401, JSON.stringify({ok:false,error:'Autentificare necesară.'}), 'application/json; charset=utf-8'); return true; }
+    try {
+      const scope = String(session.headerCode || '').trim();
+      const role = String(session.role || '').toLowerCase();
+      const scopeFilter = role === 'superuser' || !scope ? '' : ` and coalesce(payload->>'HeaderCode',payload->>'ID organizație','')=${dollar(scope)}`;
+      const out = await runPsql(`select coalesce(json_agg(row_to_json(t))::text,'[]') from (
+        select id,
+          coalesce(payload->>'Beneficiar',payload->>'Nume',payload->>'Utilizator','Utilizator') as name,
+          coalesce(payload->>'Utilizator',payload->>'Nume','') as username,
+          coalesce(payload->>'Telefon','') as phone,
+          coalesce(payload->>'Email','') as email,
+          coalesce(payload->>'Rol','membru') as role,
+          coalesce(payload->>'EntityCode',payload->>'Cod beneficiar','') as entity_code,
+          case when coalesce(payload->>'Hash','')<>'' then true else false end as password_configured,
+          case when lower(coalesce(payload->>'PinActiv','false'))='true' and coalesce(payload->>'PinHash','')<>'' then true else false end as pin_enabled
+        from ${dqIdent(PGSCHEMA)}.config_record
+        where section_key='main-login-user' and coalesce((payload->>'Activ')::boolean,true)=true${scopeFilter}
+        order by lower(coalesce(payload->>'Rol','')), lower(coalesce(payload->>'Beneficiar',payload->>'Nume',payload->>'Utilizator',''))
+      ) t;`);
+      send(res, 200, out || '[]', 'application/json; charset=utf-8');
+    } catch(e) { send(res, 500, JSON.stringify({ok:false,error:e.message||'Nu s-au putut încărca utilizatorii.'}), 'application/json; charset=utf-8'); }
+    return true;
+  }
+  const accessMatch = url.pathname.match(/^\/api\/admin\/access-accounts\/(\d+)$/);
+  if (accessMatch && req.method === 'PUT') {
+    const session = getMainSessionState(req);
+    if (!session) { send(res, 401, JSON.stringify({ok:false,error:'Autentificare necesară.'}), 'application/json; charset=utf-8'); return true; }
+    try {
+      const body = await readJson(req);
+      const id = Number(accessMatch[1]);
+      const password = String(body.password || '').trim();
+      const pin = String(body.pin || '').trim();
+      const pinEnabled = body.pinEnabled === true;
+      if (!password && !pin && body.pinEnabled === undefined) throw new Error('Completează parola nouă sau PIN-ul.');
+      if (password && password.length < 8) throw new Error('Parola nouă trebuie să aibă minimum 8 caractere.');
+      if (pin && !/^\d{4}$/.test(pin)) throw new Error('PIN-ul trebuie să conțină exact 4 cifre.');
+      if (pinEnabled && !pin) {
+        const chk = await runPsql(`select coalesce((select case when coalesce(payload->>'PinHash','')<>'' then '1' else '0' end from ${dqIdent(PGSCHEMA)}.config_record where id=${id} and section_key='main-login-user'),'0');`);
+        if (String(chk||'0').trim() !== '1') throw new Error('Setează mai întâi un PIN din 4 cifre.');
+      }
+      const role = String(session.role || '').toLowerCase();
+      const scope = String(session.headerCode || '').trim();
+      const guard = role === 'superuser' || !scope ? '' : ` and coalesce(payload->>'HeaderCode',payload->>'ID organizație','')=${dollar(scope)}`;
+      const pairs=[];
+      if (password) {
+        const salt=crypto.randomBytes(16).toString('hex'), iterations=180000;
+        pairs.push(`'Salt',${dollar(salt)},'Iterations',${iterations},'Hash',${dollar(passwordHash(password,salt,iterations))},'ParolaResetataDeAdminLa',to_char(now(),'YYYY-MM-DD"T"HH24:MI:SS')`);
+      }
+      if (pin) {
+        const salt=crypto.randomBytes(16).toString('hex'), iterations=120000;
+        pairs.push(`'PinSalt',${dollar(salt)},'PinIterations',${iterations},'PinHash',${dollar(passwordHash(pin,salt,iterations))},'PinActiv',${pinEnabled?'true':'false'},'PinActualizatLa',to_char(now(),'YYYY-MM-DD"T"HH24:MI:SS')`);
+      } else if (body.pinEnabled !== undefined) {
+        pairs.push(`'PinActiv',${pinEnabled?'true':'false'}`);
+      }
+      const sql=`update ${dqIdent(PGSCHEMA)}.config_record set payload=payload || jsonb_build_object(${pairs.join(',')}), updated_at=now() where id=${id} and section_key='main-login-user'${guard} returning json_build_object('ok',true,'id',id)::text;`;
+      const out=await runPsql(sql);
+      if(!String(out||'').trim()) throw new Error('Utilizatorul nu a fost găsit sau nu aparține rețelei tale.');
+      send(res,200,String(out).split('\n').pop(),'application/json; charset=utf-8');
+    } catch(e) { send(res,400,JSON.stringify({ok:false,error:e.message||'Datele de acces nu au putut fi actualizate.'}),'application/json; charset=utf-8'); }
+    return true;
   }
 
   if (url.pathname === '/api/auth/password-reset/request' && req.method === 'POST') {
@@ -1835,7 +1908,7 @@ const requestHandler = async (req, res) => {
   if (url.pathname === '/api/runtime-config') {
     let st = getMainSessionState(req);
     st = await enrichMainSessionFromDb(st);
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.91', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.93', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1907,7 +1980,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.91 is running');
+  console.log('FamilyCare Main V1.0.93 is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
   console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);
