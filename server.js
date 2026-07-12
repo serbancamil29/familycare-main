@@ -1911,7 +1911,7 @@ const requestHandler = async (req, res) => {
   if (url.pathname === '/api/runtime-config') {
     let st = getMainSessionState(req);
     st = await enrichMainSessionFromDb(st);
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.93', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'2.0.1', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {

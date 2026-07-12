@@ -24,6 +24,7 @@
     const current = (location.pathname.split('/').pop() || 'dashboard.html').toLowerCase();
     const items = [
       ['dashboard.html', '🏠', 'Dashboard', 'dashboard'],
+      ['network.html', '👪', 'Rețeaua mea', 'network'],
       ['journal.html', '📝', 'Jurnal', 'journal'],
       ['agenda.html', '📅', 'Agenda', 'agenda'],
       ['reports.html', '▦', 'Rapoarte', 'reports'],
@@ -84,6 +85,34 @@
     }
     // Tipărirea este disponibilă doar la nivel de raport, în pages/reports.html.
   }
+
+  function setupGlobalThemeToggle() {
+    const KEY = 'familycare-theme';
+    document.querySelectorAll('.theme-switch').forEach(el => el.remove());
+    let button = document.querySelector('.global-theme-toggle');
+    if (!button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'global-theme-toggle';
+      button.setAttribute('aria-label', 'Schimbă tema');
+      button.setAttribute('title', 'Schimbă tema');
+      document.body.appendChild(button);
+    }
+    const apply = theme => {
+      const dark = theme === 'dark';
+      document.documentElement.classList.toggle('dark-theme', dark);
+      document.body.classList.toggle('dark-theme', dark);
+      try { localStorage.setItem(KEY, dark ? 'dark' : 'light'); } catch (_) {}
+      button.innerHTML = dark ? '<span aria-hidden="true">☀️</span>' : '<span aria-hidden="true">🌙</span>';
+      button.setAttribute('aria-label', dark ? 'Activează tema luminoasă' : 'Activează tema întunecată');
+      button.setAttribute('title', dark ? 'Tema luminoasă' : 'Tema întunecată');
+    };
+    let current = 'light';
+    try { current = localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light'; } catch (_) {}
+    apply(current);
+    button.onclick = () => apply(document.documentElement.classList.contains('dark-theme') ? 'light' : 'dark');
+  }
+
   function ensureAuthControls(cfg) {
     if (!cfg.authRequired || !document.querySelector('.sidebar') || document.querySelector('.sidebar-auth')) return;
     const box = document.createElement('div');
@@ -98,10 +127,11 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const cfg = await getRuntimeConfig();
     ensureMainNavigation();
+    setupGlobalThemeToggle();
     applySeniorLinks(cfg.seniorBaseUrl || '');
     improveShellControls(cfg);
     ensureAuthControls(cfg);
-    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.93'); });
+    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '2.0.1'); });
   }, { once: true });
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

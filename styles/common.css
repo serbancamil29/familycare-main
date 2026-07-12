@@ -817,3 +817,29 @@ body,button,input,select,textarea{font-family:ui-sans-serif,-apple-system,BlinkM
 .password-reset-close{border:0;background:transparent;font-size:2rem;line-height:1;cursor:pointer;color:inherit;padding:.1rem .35rem}
 .reset-info{padding:.8rem;border-radius:.7rem;background:rgba(29,78,216,.08);margin:.2rem 0 .8rem}
 .main-login-card{position:relative}
+
+
+/* FamilyCare v2.0.1 - global theme control and complete dark surfaces */
+.global-theme-toggle{
+  position:fixed;top:18px;right:22px;z-index:120;width:46px;height:46px;
+  display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;
+  background:var(--bg-card);color:var(--text-principal);box-shadow:0 10px 26px rgba(15,23,42,.14);
+  cursor:pointer;font-size:21px;line-height:1;transition:transform .15s ease,background .15s ease,border-color .15s ease;
+}
+.global-theme-toggle:hover{transform:translateY(-1px);border-color:var(--btn-accent-bg)}
+.global-theme-toggle:focus-visible{outline:3px solid color-mix(in srgb,var(--btn-accent-bg) 35%,transparent);outline-offset:3px}
+html.dark-theme .global-theme-toggle{background:#172033;border-color:#3b4960;color:#f8fafc;box-shadow:0 10px 26px rgba(0,0,0,.32)}
+html.dark-theme body,html.dark-theme .main{background:var(--bg-general);color:var(--text-principal)}
+html.dark-theme input,html.dark-theme select,html.dark-theme textarea{background:#151d30!important;color:#f8fafc!important;border-color:#334155!important;color-scheme:dark}
+html.dark-theme option{background:#151d30;color:#f8fafc}
+html.dark-theme .report-kpis article,html.dark-theme .company-metrics article,
+html.dark-theme .report-badge,html.dark-theme .unit-cards article,html.dark-theme .module-grid article{
+  background:#151d30!important;color:#f8fafc;border-color:#334155;box-shadow:none
+}
+html.dark-theme .report-kpis span,html.dark-theme .company-metrics span,
+html.dark-theme .unit-cards span,html.dark-theme .unit-cards small,html.dark-theme .module-grid span{color:#cbd5e1}
+html.dark-theme .card,html.dark-theme .section,html.dark-theme .table-wrap,html.dark-theme table{background:#111827!important;color:#f8fafc;border-color:#334155}
+html.dark-theme td,html.dark-theme th{border-color:#334155;color:#e2e8f0}
+html.dark-theme .topbar,html.dark-theme .page-title,html.dark-theme .section-title{color:#f8fafc}
+@media(max-width:1000px){.global-theme-toggle{top:12px;right:14px;width:42px;height:42px}}
+@media print{.global-theme-toggle{display:none!important}}
