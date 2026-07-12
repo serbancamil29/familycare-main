@@ -208,12 +208,12 @@ const TLS_PFX_PASSPHRASE = process.env.TLS_PFX_PASSPHRASE || 'familycare-local';
 const PROTOCOL = HTTPS_ENABLED ? 'https' : 'http';
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 const ADMIN_NAME = String(process.env.ADMIN_NAME || 'Administrator FamilyCare');
-// V1.0.90: superuser tehnic disponibil indiferent dacă există deja utilizatori în baza de date.
+// V1.0.91: superuser tehnic disponibil indiferent dacă există deja utilizatori în baza de date.
 // Datele implicite pot fi suprascrise prin variabilele SUPERUSER_NAME și SUPERUSER_PASSWORD.
 const SUPERUSER_NAME = String(process.env.SUPERUSER_NAME || 'camil.superadmin');
 const SUPERUSER_PASSWORD = String(process.env.SUPERUSER_PASSWORD || 'FamilyCare#Camil2026!');
 const passwordResetRequests = new Map();
-// V1.0.90: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
+// V1.0.91: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
 // Pentru test fără autentificare se poate seta MAIN_AUTH_DISABLED=true, dar implicit login-ul este activ.
 const MAIN_AUTH_DISABLED = ['true','1','yes','da'].includes(String(process.env.MAIN_AUTH_DISABLED || process.env.FAMILYCARE_AUTH_DISABLED || '').trim().toLowerCase());
 const AUTH_REQUIRED = !MAIN_AUTH_DISABLED;
@@ -366,10 +366,14 @@ async function createMainLoginUser(body) {
   if (!phone) throw new Error('Completează telefonul.');
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Completează o adresă de e-mail validă.');
   if (password.length < 6) throw new Error('Parola trebuie să aibă minimum 6 caractere pentru testare.');
-  const existing = await findMainLoginUser(phone) || await findMainLoginUser(name) || await findMainLoginUser(email);
-  if (existing) throw new Error('Există deja un user cu acest telefon sau utilizator.');
+  const existingByUser = await findMainLoginUser(name);
+  if (existingByUser) throw new Error('Utilizatorul introdus există deja. Alege un alt nume de utilizator.');
+  const existingByPhone = await findMainLoginUser(phone);
+  if (existingByPhone) throw new Error('Numărul de telefon introdus este deja asociat unui cont.');
+  const existingByEmail = await findMainLoginUser(email);
+  if (existingByEmail) throw new Error('Adresa de e-mail introdusă este deja asociată unui cont. Folosește altă adresă sau opțiunea „Ai uitat parola?”.');
 
-  // V1.0.90: fiecare utilizator/aparținător primește propria organizație și grup implicit.
+  // V1.0.91: fiecare utilizator/aparținător primește propria organizație și grup implicit.
   // Senior folosește aceste coduri ca să afișeze doar beneficiarii aparținătorului autentificat.
   const headerCode = makeCode('CH');
   const branchCode = makeCode('CB');
@@ -477,7 +481,7 @@ async function handleMainAuthApi(req, res, url) {
   if (url.pathname === '/api/auth/register' && req.method === 'POST') {
     if (!ALLOW_PUBLIC_REGISTRATION) { send(res, 403, JSON.stringify({ ok:false, error:'Crearea publică de conturi este dezactivată. Solicită administratorului activarea înregistrării.' }), 'application/json; charset=utf-8'); return true; }
     try {
-      // V1.0.90: în perioada de testare, utilizatorul nou se poate crea direct din login,
+      // V1.0.91: în perioada de testare, utilizatorul nou se poate crea direct din login,
       // inclusiv după ce există deja primul cont.
       const body = await readJson(req);
       const result = await createMainLoginUser(body);
@@ -1831,7 +1835,7 @@ const requestHandler = async (req, res) => {
   if (url.pathname === '/api/runtime-config') {
     let st = getMainSessionState(req);
     st = await enrichMainSessionFromDb(st);
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.90', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.91', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1903,7 +1907,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.90 is running');
+  console.log('FamilyCare Main V1.0.91 is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
   console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);
