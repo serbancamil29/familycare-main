@@ -208,7 +208,12 @@ const TLS_PFX_PASSPHRASE = process.env.TLS_PFX_PASSPHRASE || 'familycare-local';
 const PROTOCOL = HTTPS_ENABLED ? 'https' : 'http';
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 const ADMIN_NAME = String(process.env.ADMIN_NAME || 'Administrator FamilyCare');
-// V1.0.89: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
+// V1.0.90: superuser tehnic disponibil indiferent dacă există deja utilizatori în baza de date.
+// Datele implicite pot fi suprascrise prin variabilele SUPERUSER_NAME și SUPERUSER_PASSWORD.
+const SUPERUSER_NAME = String(process.env.SUPERUSER_NAME || 'camil.superadmin');
+const SUPERUSER_PASSWORD = String(process.env.SUPERUSER_PASSWORD || 'FamilyCare#Camil2026!');
+const passwordResetRequests = new Map();
+// V1.0.90: login Main cu opțiune publică Utilizator nou pentru testare și onboarding.
 // Pentru test fără autentificare se poate seta MAIN_AUTH_DISABLED=true, dar implicit login-ul este activ.
 const MAIN_AUTH_DISABLED = ['true','1','yes','da'].includes(String(process.env.MAIN_AUTH_DISABLED || process.env.FAMILYCARE_AUTH_DISABLED || '').trim().toLowerCase());
 const AUTH_REQUIRED = !MAIN_AUTH_DISABLED;
@@ -216,7 +221,7 @@ const ALLOW_PUBLIC_REGISTRATION = !['false','0','no','nu'].includes(String(proce
 const SESSION_TTL_MS = Math.max(15 * 60 * 1000, Number(process.env.SESSION_TTL_MINUTES || 480) * 60 * 1000);
 const adminSessions = new Map();
 const loginAttempts = new Map();
-setInterval(()=>{const now=Date.now();for(const [token,state] of adminSessions){const expires=state&&typeof state==='object'?state.expires:state;if(!expires||expires<now)adminSessions.delete(token);}for(const [key,state] of loginAttempts){if((state.until&&state.until<now)||(!state.until&&state.first&&now-state.first>15*60*1000))loginAttempts.delete(key);}},15*60*1000).unref();
+setInterval(()=>{const now=Date.now();for(const [token,state] of adminSessions){const expires=state&&typeof state==='object'?state.expires:state;if(!expires||expires<now)adminSessions.delete(token);}for(const [key,state] of loginAttempts){if((state.until&&state.until<now)||(!state.until&&state.first&&now-state.first>15*60*1000))loginAttempts.delete(key);}for(const [key,state] of passwordResetRequests){if(!state||state.expires<now)passwordResetRequests.delete(key);}},15*60*1000).unref();
 
 
 function sameSecret(a, b) {
@@ -303,6 +308,7 @@ async function findMainLoginUser(identifier) {
           coalesce(payload->>'Telefon','')=${dollar(normalized)}
           or lower(coalesce(payload->>'Nume',''))=lower(${dollar(raw)})
           or lower(coalesce(payload->>'Utilizator',''))=lower(${dollar(raw)})
+          or lower(coalesce(payload->>'Email',''))=lower(${dollar(raw)})
         )
       order by
         case when lower(coalesce(payload->>'Rol','')) in ('apartinator','admin','administrator','furnizor','family_member') or coalesce(payload->>'EntityCode',payload->>'Cod beneficiar','')='' then 0 else 1 end,
@@ -353,15 +359,17 @@ async function restoreApartinatorPayloadIfNeeded(found, identifier) {
 async function createMainLoginUser(body) {
   const name = String(body.name || body.Nume || body.user || body.Utilizator || '').trim();
   const phone = normalizePhone(body.phone || body.Telefon || '');
+  const email = String(body.email || body.Email || '').trim().toLowerCase();
   const password = String(body.password || body.Parola || body['Parolă'] || '');
   const orgType = String(body.orgType || body['Tip organizație'] || 'familie_proprie').trim() || 'familie_proprie';
   if (!name) throw new Error('Completează utilizatorul.');
   if (!phone) throw new Error('Completează telefonul.');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Completează o adresă de e-mail validă.');
   if (password.length < 6) throw new Error('Parola trebuie să aibă minimum 6 caractere pentru testare.');
-  const existing = await findMainLoginUser(phone) || await findMainLoginUser(name);
+  const existing = await findMainLoginUser(phone) || await findMainLoginUser(name) || await findMainLoginUser(email);
   if (existing) throw new Error('Există deja un user cu acest telefon sau utilizator.');
 
-  // V1.0.89: fiecare utilizator/aparținător primește propria organizație și grup implicit.
+  // V1.0.90: fiecare utilizator/aparținător primește propria organizație și grup implicit.
   // Senior folosește aceste coduri ca să afișeze doar beneficiarii aparținătorului autentificat.
   const headerCode = makeCode('CH');
   const branchCode = makeCode('CB');
@@ -373,6 +381,7 @@ async function createMainLoginUser(body) {
     Nume:name,
     Utilizator:name,
     Telefon:phone,
+    Email:email,
     'Tip organizație':orgType,
     HeaderCode:headerCode,
     'ID organizație':headerCode,
@@ -468,7 +477,7 @@ async function handleMainAuthApi(req, res, url) {
   if (url.pathname === '/api/auth/register' && req.method === 'POST') {
     if (!ALLOW_PUBLIC_REGISTRATION) { send(res, 403, JSON.stringify({ ok:false, error:'Crearea publică de conturi este dezactivată. Solicită administratorului activarea înregistrării.' }), 'application/json; charset=utf-8'); return true; }
     try {
-      // V1.0.89: în perioada de testare, utilizatorul nou se poate crea direct din login,
+      // V1.0.90: în perioada de testare, utilizatorul nou se poate crea direct din login,
       // inclusiv după ce există deja primul cont.
       const body = await readJson(req);
       const result = await createMainLoginUser(body);
@@ -482,6 +491,13 @@ async function handleMainAuthApi(req, res, url) {
     if (loginBlocked(req)) { send(res, 429, JSON.stringify({ ok:false, error:'Prea multe încercări. Reîncearcă peste 15 minute.' }), 'application/json; charset=utf-8'); return true; }
     try {
       const body = await readJson(req);
+      const suppliedIdentifier = String(body.identifier || body.user || body.phone || body.Telefon || '').trim();
+      if (suppliedIdentifier.toLowerCase() === SUPERUSER_NAME.toLowerCase() && sameSecret(body.password || '', SUPERUSER_PASSWORD)) {
+        loginAttempts.delete(loginKey(req));
+        openSessionFor(res, req, 'Camil - Superuser', { Nume:'Camil - Superuser', Utilizator:SUPERUSER_NAME, Rol:'superuser' });
+        send(res, 200, JSON.stringify({ ok:true, name:'Camil - Superuser', role:'superuser' }), 'application/json; charset=utf-8');
+        return true;
+      }
       const users = await mainLoginUserCount();
       if (!users && ADMIN_PASSWORD && sameSecret(body.password || '', ADMIN_PASSWORD)) {
         loginAttempts.delete(loginKey(req));
@@ -509,6 +525,59 @@ async function handleMainAuthApi(req, res, url) {
       send(res, 200, JSON.stringify({ ok:true, name:payload.Nume || ADMIN_NAME, headerCode:payload.HeaderCode||'', headerName:payload['Organizație / cont']||payload.Organizatie||'' }), 'application/json; charset=utf-8');
       return true;
     } catch (e) { send(res, 400, JSON.stringify({ ok:false, error:e.message || 'Cerere invalidă.' }), 'application/json; charset=utf-8'); return true; }
+  }
+
+  if (url.pathname === '/api/auth/password-reset/request' && req.method === 'POST') {
+    try {
+      const body = await readJson(req);
+      const identifier = String(body.identifier || body.user || body.email || '').trim();
+      if (!identifier) throw new Error('Completează utilizatorul sau adresa de e-mail.');
+      if (identifier.toLowerCase() === SUPERUSER_NAME.toLowerCase()) {
+        send(res, 400, JSON.stringify({ ok:false, error:'Parola superuserului se modifică numai din variabila SUPERUSER_PASSWORD.' }), 'application/json; charset=utf-8');
+        return true;
+      }
+      const found = await findMainLoginUser(identifier);
+      const payload = found && found.payload ? found.payload : null;
+      const email = String(payload && payload.Email || '').trim().toLowerCase();
+      if (!payload || !email) {
+        send(res, 200, JSON.stringify({ ok:true, message:'Dacă utilizatorul există și are e-mail configurat, vei primi un cod de verificare.' }), 'application/json; charset=utf-8');
+        return true;
+      }
+      const code = String(crypto.randomInt(100000, 1000000));
+      const requestId = crypto.randomBytes(18).toString('base64url');
+      passwordResetRequests.set(requestId, { userId:Number(found.id), codeHash:crypto.createHash('sha256').update(code).digest('hex'), expires:Date.now()+15*60*1000, attempts:0 });
+      const result = await sendAndLog('reset-parola', email, 'Cod resetare parolă FamilyCare', `Codul tău pentru resetarea parolei este: ${code}
+
+Codul este valabil 15 minute. Dacă nu ai solicitat resetarea, ignoră acest mesaj.`, String(payload.HeaderCode || payload['ID organizație'] || ''));
+      if (!result.ok) {
+        passwordResetRequests.delete(requestId);
+        throw new Error('E-mailul de resetare nu a putut fi trimis. Verifică setările de e-mail din FamilyCare.');
+      }
+      send(res, 200, JSON.stringify({ ok:true, requestId, maskedEmail:email.replace(/^(.{1,2}).*(@.*)$/,'$1***$2'), message:'Am trimis un cod de verificare pe e-mail.' }), 'application/json; charset=utf-8');
+      return true;
+    } catch (e) { send(res, 400, JSON.stringify({ ok:false, error:e.message || 'Resetarea nu a putut fi inițiată.' }), 'application/json; charset=utf-8'); return true; }
+  }
+  if (url.pathname === '/api/auth/password-reset/confirm' && req.method === 'POST') {
+    try {
+      const body = await readJson(req);
+      const requestId = String(body.requestId || '').trim();
+      const code = String(body.code || '').trim();
+      const password = String(body.password || '');
+      const state = passwordResetRequests.get(requestId);
+      if (!state || state.expires < Date.now()) throw new Error('Cererea de resetare a expirat. Solicită un cod nou.');
+      if (password.length < 8) throw new Error('Noua parolă trebuie să aibă minimum 8 caractere.');
+      state.attempts += 1;
+      if (state.attempts > 5) { passwordResetRequests.delete(requestId); throw new Error('Prea multe încercări. Solicită un cod nou.'); }
+      const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+      if (!sameSecret(codeHash, state.codeHash)) throw new Error('Codul de verificare este incorect.');
+      const salt = crypto.randomBytes(16).toString('hex');
+      const iterations = 180000;
+      const hash = passwordHash(password, salt, iterations);
+      await runPsql(`update ${dqIdent(PGSCHEMA)}.config_record set payload=payload || jsonb_build_object('Salt',${dollar(salt)},'Iterations',${iterations},'Hash',${dollar(hash)},'ParolaResetataLa',to_char(now(),'YYYY-MM-DD"T"HH24:MI:SS')) where id=${Number(state.userId)} and section_key='main-login-user';`);
+      passwordResetRequests.delete(requestId);
+      send(res, 200, JSON.stringify({ ok:true, message:'Parola a fost schimbată. Te poți autentifica.' }), 'application/json; charset=utf-8');
+      return true;
+    } catch (e) { send(res, 400, JSON.stringify({ ok:false, error:e.message || 'Parola nu a putut fi schimbată.' }), 'application/json; charset=utf-8'); return true; }
   }
   if (url.pathname === '/api/auth/logout' && req.method === 'DELETE') {
     const token = parseCookies(req).fc_main_session || '';
@@ -1762,7 +1831,7 @@ const requestHandler = async (req, res) => {
   if (url.pathname === '/api/runtime-config') {
     let st = getMainSessionState(req);
     st = await enrichMainSessionFromDb(st);
-    send(res, 200, JSON.stringify({ ok:true, version:'1.0.89', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'1.0.90', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
@@ -1834,7 +1903,7 @@ process.on('SIGTERM', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log('============================================================');
-  console.log('FamilyCare Main V1.0.89 is running');
+  console.log('FamilyCare Main V1.0.90 is running');
   console.log('URL: ' + PROTOCOL + '://localhost:' + PORT + (AUTH_REQUIRED ? '/pages/main-login.html' : '/pages/dashboard.html'));
   console.log('Main authentication: ' + (AUTH_REQUIRED ? 'required' : 'disabled for testing'));
   console.log('Database: ' + (process.env.PGDATABASE || '(from PostgreSQL defaults)') + ' / schema ' + PGSCHEMA);

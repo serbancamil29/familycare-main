@@ -37,7 +37,7 @@
       const attrs = isSenior ? ' data-senior-link target="_blank" rel="noopener"' : '';
       return `<a class="${active ? 'active' : ''}" href="${href}"${attrs}><span class="ico">${icon}</span><span>${label}</span></a>`;
     }).join('');
-    // V1.0.89: nu mai reconstruim meniul dacă are deja aceeași ordine; schimbăm doar active/href.
+    // V1.0.90: nu mai reconstruim meniul dacă are deja aceeași ordine; schimbăm doar active/href.
     // Asta elimină flicker-ul în care unele opțiuni dispar pentru o fracțiune de secundă la navigare.
     const currentLabels = Array.from(nav.querySelectorAll('a span:last-child')).map(x => x.textContent.trim()).join('|');
     const expectedLabels = items.map(x => x[2]).join('|');
@@ -101,7 +101,7 @@
     applySeniorLinks(cfg.seniorBaseUrl || '');
     improveShellControls(cfg);
     ensureAuthControls(cfg);
-    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.89'); });
+    document.querySelectorAll('.brand-version').forEach(el => { el.textContent = 'v' + (cfg.version || '1.0.90'); });
   }, { once: true });
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
@@ -160,7 +160,7 @@
     observer.observe(document.body, { childList:true, subtree:true });
   }, {once:true});
 
-  // V1.0.89 - meniu stabil: pe desktop rămâne extins, iar click pe meniu nu îl restrânge automat.
+  // V1.0.90 - meniu stabil: pe desktop rămâne extins, iar click pe meniu nu îl restrânge automat.
   document.addEventListener('DOMContentLoaded', () => {
     const shell = document.querySelector('.app-shell');
     if (!shell) return;
