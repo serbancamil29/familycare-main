@@ -819,7 +819,7 @@ body,button,input,select,textarea{font-family:ui-sans-serif,-apple-system,BlinkM
 .main-login-card{position:relative}
 
 
-/* FamilyCare v3.0.1 - global theme control and complete dark surfaces */
+/* FamilyCare v3.0.2 - global theme control and complete dark surfaces */
 .global-theme-toggle{
   position:fixed;top:18px;right:22px;z-index:120;width:46px;height:46px;
   display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;

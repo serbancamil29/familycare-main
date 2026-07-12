@@ -1440,7 +1440,7 @@ async function handleSeniorEntitiesApi(req, res, url) {
       select
         e.id,
         e.entity_code,
-        coalesce(to_jsonb(e)->>'name', to_jsonb(e)->>'display_name', e.entity_code) as name,
+        coalesce(nullif(to_jsonb(e)->>'name',''), nullif(to_jsonb(e)->>'display_name',''), nullif(e.entity_code,''), 'Beneficiar') as name,
         e.entity_type,
         coalesce(b.branch_code, to_jsonb(e)->>'branch_code') as branch_code,
         coalesce(b.name, to_jsonb(e)->>'branch_name') as branch_name,
@@ -1463,7 +1463,7 @@ async function handleSeniorEntitiesApi(req, res, url) {
         limit 1
       ) card_style on true
       ${filter}
-      order by b.sort_order nulls last, coalesce(to_jsonb(e)->>'name', to_jsonb(e)->>'display_name', e.entity_code)
+      order by b.sort_order nulls last, coalesce(nullif(to_jsonb(e)->>'name',''), nullif(to_jsonb(e)->>'display_name',''), e.entity_code)
     ) t;`;
     const out = await runPsql(sql);
     send(res, 200, out || '[]', 'application/json; charset=utf-8');
@@ -1911,7 +1911,7 @@ const requestHandler = async (req, res) => {
   if (url.pathname === '/api/runtime-config') {
     let st = getMainSessionState(req);
     st = await enrichMainSessionFromDb(st);
-    send(res, 200, JSON.stringify({ ok:true, version:'3.0.1', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
+    send(res, 200, JSON.stringify({ ok:true, version:'3.0.2', seniorBaseUrl:SENIOR_BASE_URL, authRequired:AUTH_REQUIRED, registrationAllowed:ALLOW_PUBLIC_REGISTRATION, authenticated:!!st, userName:st&&st.userName||ADMIN_NAME, headerCode:st&&st.headerCode||'', headerName:st&&st.headerName||'', orgType:st&&st.orgType||'', role:st&&st.role||'' }), 'application/json; charset=utf-8');
     return;
   }
   if (url.pathname.startsWith('/api/') && !authorizedMain(req)) {
